@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath artifact configuration "app": the unpacked application executables,
+  signed before electron-builder wraps them into the NSIS installers.
+  Bundled upstream binaries (Electron DLLs, elevate.exe) are deliberately not signed.
+  This file is a copy kept under review; the active version lives in SignPath.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <!-- electron-builder writes the app executable's ProductVersion in four-part form (0.1.0.0). -->
+    <pe-file-set product-name="Pittacus Relay" product-version="${version}.0" file-version="${version}">
+      <include path="win-unpacked/Pittacus Relay.exe" />
+      <include path="win-arm64-unpacked/Pittacus Relay.exe" />
+      <for-each>
+        <authenticode-sign />
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>

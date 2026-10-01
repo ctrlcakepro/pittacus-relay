@@ -43,7 +43,7 @@
 
 macOS 另提供同架构的 `.zip` 包，解压后把 `Pittacus Relay.app` 拖进"应用程序"即可，效果与 `.dmg` 相同。
 
-目前安装包**没有代码签名**，首次打开会被系统拦截：
+目前安装包**没有代码签名**，首次打开会被系统拦截（Windows 版正在申请 SignPath Foundation 的免费开源签名，见 [Code signing policy](#code-signing-policy)）：
 
 - **Windows**：SmartScreen 提示"已保护你的电脑"时，点"更多信息"→"仍要运行"。
 - **macOS**：提示"无法验证开发者"或"已损坏"时，打开"系统设置 → 隐私与安全性"，在底部点"仍要打开"；或在终端执行 `xattr -cr "/Applications/Pittacus Relay.app"` 后再打开。
@@ -100,6 +100,17 @@ opencode ────(OpenAI 格式)──────┘    校验本地密钥 
 
 **防护边界**（如实说明）：系统密钥存储能防止配置文件被拷走后解密、防止其他系统账户读取；但无法防御已在你账户下运行的恶意程序——它和 agent 工具一样能读到本地密钥。PIN 与 Windows Hello / Touch ID 只是复制前的身份确认，防的是别人趁你离开时在已解锁的电脑上把 Key 复制走，不是额外的加密层；Key 一旦进入剪贴板，同一账户下的其他程序在清除前都能读到。另外，目前安装包尚未代码签名，见路线图。
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).（Windows 版申请中，获批前发布的安装包仍未签名。）
+
+- 签名范围：只签本仓库源码经 GitHub Actions 构建出的 Windows 程序 `Pittacus Relay.exe` 与安装包 `Pittacus-Relay-<版本>-win-*.exe`；随附的上游组件（Electron 运行库等）不使用本项目证书签名。签名配置见 [`.signpath/`](.signpath/)。
+- 每个版本都需人工批准后才会签名。
+- Committers and reviewers: [ctrlcakepro](https://github.com/ctrlcakepro)
+- Approvers: [ctrlcakepro](https://github.com/ctrlcakepro)
+
+**Privacy policy**：This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. 即：Pittacus Relay 没有遥测，只会把请求转发到你自己配置的模型供应商；这些供应商如何处理你的数据，以各自的隐私政策为准。
+
 ## 开发
 
 ```bash
@@ -132,7 +143,8 @@ src/shared/    主进程与界面之间的类型契约
 ## 路线图
 
 - [x] Windows / macOS 安装包（electron-builder + GitHub Actions）
-- [ ] 代码签名与公证（Windows 证书、Apple Developer ID），去掉首次打开的系统拦截
+- [ ] Windows 代码签名（SignPath Foundation，CI 已接入，等待项目获批）
+- [ ] macOS 签名与公证（需 Apple Developer ID），去掉首次打开的系统拦截
 - [ ] 自动更新
 - [ ] OpenAI ↔ Anthropic 协议互转（让只有 OpenAI 端点的模型也能用于 Claude Code）
 - [ ] Codex（OpenAI Responses API）接入

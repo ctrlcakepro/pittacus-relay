@@ -8,20 +8,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: ${{ matrix.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows
-            os: windows-latest
-            target: --win
-          # macOS packages (dmg) can only be built on macOS.
-          - name: macOS
-            os: macos-latest
-            target: --mac
-    runs-on: ${{ matrix.os }}
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    env:
+      # No local signing certificates; never pick one up from the runner.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Release tags are signed through SignPath once the project is set up there
+      # (repository variable SIGNPATH_ORGANIZATION_ID). Everything else ships unsigned.
+      SIGN: ${{ startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_ORGANIZATION_ID != '' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -35,34 +30,131 @@ jobs:
       - run: npm test
       - run: npx electron-vite build
 
-      - name: Package
-        run: npx electron-builder ${{ matrix.target }} --publish never
-        env:
-          # No signing certificates yet; never pick one up from the runner keychain.
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/v* && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Packaging is split in two so the app executable can be signed before the
+      # installer wraps it: SignPath cannot sign files inside an NSIS installer.
+      - name: Package app
+        run: npx electron-builder --win --dir --x64 --arm64 --publish never
+
+      - name: Upload unsigned app
+        id: unsigned-app
+        if: env.SIGN == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: unsigned-app
+          if-no-files-found: error
+          path: |
+            dist/win-unpacked/Pittacus Relay.exe
+            dist/win-arm64-unpacked/Pittacus Relay.exe
+
+      - name: Sign app
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'pittacus-relay' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: app
+          github-artifact-id: ${{ steps.unsigned-app.outputs.artifact-id }}
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
+          # Every release waits for manual approval in SignPath.
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist
+
+      - name: Package installers
+        run: |
+          npx electron-builder --win nsis --x64 --prepackaged dist/win-unpacked --publish never
+          npx electron-builder --win nsis --arm64 --prepackaged dist/win-arm64-unpacked --publish never
+
+      - name: Upload unsigned installers
+        id: unsigned-installers
+        if: env.SIGN == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: unsigned-installers
+          if-no-files-found: error
+          path: dist/Pittacus-Relay-*-win-*.exe
+
+      - name: Sign installers
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'pittacus-relay' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.unsigned-installers.outputs.artifact-id }}
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist
 
       - uses: actions/upload-artifact@v5
         with:
-          name: Pittacus-Relay-${{ matrix.name }}
+          name: Pittacus-Relay-Windows
+          if-no-files-found: error
+          path: dist/*.exe
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    env:
+      # No Apple Developer ID; never pick one up from the runner keychain.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx electron-vite build
+
+      # dmg packages can only be built on macOS.
+      - name: Package
+        run: npx electron-builder --mac --publish never
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: Pittacus-Relay-macOS
           if-no-files-found: error
           path: |
-            dist/*.exe
             dist/*.dmg
             dist/*.zip
 
   release:
     name: Draft release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [windows, macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v5
         with:
+          pattern: Pittacus-Relay-*
           path: artifacts
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: artifacts/*
+          body: |
+            [Code signing policy](https://github.com/${{ github.repository }}#code-signing-policy)

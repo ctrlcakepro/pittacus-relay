@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath artifact configuration "installer": the NSIS installers, built from
+  the already signed application executables.
+  This file is a copy kept under review; the active version lives in SignPath.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file-set product-name="Pittacus Relay" product-version="${version}" file-version="${version}">
+      <include path="Pittacus-Relay-*-win-x64.exe" />
+      <include path="Pittacus-Relay-*-win-arm64.exe" />
+      <for-each>
+        <authenticode-sign />
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>
