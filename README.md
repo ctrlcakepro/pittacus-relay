@@ -6,12 +6,16 @@
 
 ## 下载与安装
 
+**[前往 Releases 下载最新版本 →](https://github.com/ctrlcakepro/pittacus-relay/releases/latest)**（发布说明里附有各安装包的 SHA-256 校验值）
+
 | 系统 | 安装包 |
 |---|---|
 | Windows 10/11（x64） | `Pittacus-Relay-<版本>-win-x64.exe` |
 | Windows on ARM | `Pittacus-Relay-<版本>-win-arm64.exe` |
 | macOS Apple 芯片（M 系列） | `Pittacus-Relay-<版本>-mac-arm64.dmg` |
 | macOS Intel | `Pittacus-Relay-<版本>-mac-x64.dmg` |
+
+macOS 另提供同架构的 `.zip` 包，解压后把 `Pittacus Relay.app` 拖进"应用程序"即可，效果与 `.dmg` 相同。
 
 目前安装包**没有代码签名**，首次打开会被系统拦截：
 
