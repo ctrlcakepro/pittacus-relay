@@ -1,6 +1,6 @@
 {
   "name": "pittacus-relay",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local LLM API aggregator: one local endpoint and key for every provider, switchable from your agent's own model list.",
   "license": "MIT",
   "author": "Pittacus Relay contributors",
