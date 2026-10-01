@@ -1,0 +1,306 @@
+<meta charset="utf-8">
+<title>Pittacus Relay 标志动效</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+/* Layout: a specimen sheet. One neutral stage, then state cards, the intro dope sheet, the size ladder, before/after. */
+:root {
+  --paper: #f1f1ef;
+  --sheet: #fbfbfa;
+  --ink: #111113;
+  --mute: #66666c;
+  --rule: #d8d8d4;
+  --stage: #e2e2df;
+  --display: 'Gloock', 'Times New Roman', 'Songti SC', serif;
+  --body: 'Noto Sans SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #101012; --sheet: #17171a; --ink: #ebebe8; --mute: #9a9aa0; --rule: #2c2c30;
+    --stage: #1e1e21; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #101012; --sheet: #17171a; --ink: #ebebe8; --mute: #9a9aa0; --rule: #2c2c30;
+  --stage: #1e1e21; color-scheme: dark;
+}
+
+/*@CSS*/
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 15px/1.7 var(--body);
+  padding: 32px 20px 72px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 64px; }
+h1, h2 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; letter-spacing: 0.005em; }
+h1 { font-size: clamp(44px, 7vw, 76px); line-height: 1; }
+h2 { font-size: 28px; line-height: 1.2; }
+p { margin: 0; max-width: 62ch; }
+.eyebrow { font: 500 11.5px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.mute { color: var(--mute); }
+section { display: grid; gap: 22px; }
+.head { display: grid; gap: 8px; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+.stage {
+  background: var(--stage); border-radius: 22px; aspect-ratio: 1; max-width: 100%;
+  display: grid; place-items: center; position: relative; overflow: hidden;
+}
+.stage .hm { width: 68%; height: auto; cursor: pointer; }
+.stage-note { position: absolute; left: 18px; bottom: 14px; color: var(--mute); }
+.hero-copy { display: grid; gap: 20px; min-width: 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: 500 13px/1 var(--body); color: var(--ink); background: transparent;
+  border: 1px solid var(--rule); border-radius: 999px; padding: 9px 14px; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: 0; }
+.facts dt { color: var(--mute); }
+.facts dd { margin: 0; }
+
+/* States */
+.states { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.state { background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; padding: 16px; display: grid; gap: 12px; align-content: start; }
+.state .tilebox { aspect-ratio: 1; display: grid; place-items: center; max-width: 100%; }
+.state .hm { width: 78%; height: auto; }
+.state h3 { margin: 0; font: 700 15px/1.3 var(--body); }
+.state p { font-size: 13.5px; color: var(--mute); }
+.state .mono { color: var(--ink); line-height: 1.6; }
+
+/* Dope sheet */
+.sheet { background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; padding: 18px 18px 10px; overflow-x: auto; }
+.sheet svg { display: block; min-width: 620px; width: 100%; height: auto; }
+.sheet text { font-family: var(--mono); font-size: 11px; fill: var(--mute); }
+.sheet .lab { font-family: var(--body); font-size: 12.5px; fill: var(--ink); }
+.sheet .grid { stroke: var(--rule); stroke-width: 1; }
+.sheet .draw { fill: var(--ink); }
+.sheet .open { fill: none; stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; }
+.legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: var(--mute); }
+.legend i { display: inline-block; width: 22px; height: 8px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+.legend .l-draw { background: var(--ink); }
+.legend .l-open { border: 1px dashed var(--ink); }
+
+/* Sizes */
+.ladder { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 22px 28px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; padding: 22px; }
+.rung { display: grid; justify-items: center; gap: 8px; }
+.rung .mono { color: var(--mute); }
+.rung.compact .mono { color: var(--ink); }
+.split { width: 1px; align-self: stretch; background: var(--rule); }
+
+/* Before / after */
+.ba { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ba figure { margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; padding: 18px; display: grid; gap: 12px; }
+.ba .pic { aspect-ratio: 1; display: grid; place-items: center; max-width: 100%; }
+.ba img, .ba .pic .hm { width: 74%; height: auto; }
+/* The original bitmap sits on a white canvas; clip to its tile (103-921 of 1024, r 165). */
+.ba img { clip-path: inset(10.1% round 16%); }
+.ba figcaption { font-size: 13.5px; color: var(--mute); }
+.changes { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; max-width: 70ch; }
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; }
+  .states { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 460px) {
+  .states, .ba { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="stage" id="stage">
+      <span class="stage-note mono">点击重播 · 悬停展开</span>
+    </div>
+    <div class="hero-copy">
+      <span class="eyebrow">Pittacus Relay · Hydra mark · B/W</span>
+      <h1>一个节点，<br>五路分发</h1>
+      <p>根节点是 127.0.0.1 上的本地网关，五条线是它分出去的路由，其中三条卷成头，对应不同厂商的模型。动效只做三件事：线条从节点里长出来，待机时轻轻摆动，网关运行时有数据包沿线送到每个头。</p>
+      <div class="controls" role="group" aria-label="舞台控制">
+        <button class="chip" id="c-replay" type="button">重播入场</button>
+        <button class="chip" id="c-active" type="button" aria-pressed="true">路由中</button>
+        <button class="chip" id="c-live" type="button" aria-pressed="true">待机摆动</button>
+        <button class="chip" id="c-tile" type="button" aria-pressed="false">白底版</button>
+      </div>
+      <dl class="facts mono">
+        <dt>网格</dt><dd>1024 × 1024，底板为 n = 5 超椭圆</dd>
+        <dt>线宽</dt><dd>24（≥48px），小尺寸字形 54</dd>
+        <dt>旋转中心</dt><dd>(512, 728)，节点正上方</dd>
+        <dt>无障碍</dt><dd>prefers-reduced-motion 下全部静止</dd>
+      </dl>
+    </div>
+  </header>
+
+  <section>
+    <div class="head">
+      <span class="eyebrow">States</span>
+      <h2>四种状态</h2>
+      <p class="mute">每种状态挂在不同的嵌套 &lt;g&gt; 上，变换互相叠加而不覆盖，所以可以任意组合。</p>
+    </div>
+    <div class="states" id="states"></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <span class="eyebrow">Dope sheet</span>
+      <h2>入场时间表</h2>
+      <p class="mute">按 geometry.ts 里的真实参数绘制。实心条是描线（0.78s），虚线框是展开回弹（1.0s，末段带过冲）。</p>
+    </div>
+    <div class="sheet"><svg id="dope" viewBox="0 0 900 250" role="img" aria-label="入场动画时间表"></svg></div>
+    <div class="legend"><span><i class="l-draw"></i>描线 stroke-dashoffset</span><span><i class="l-open"></i>展开 rotate + scale</span></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <span class="eyebrow">Optical sizes</span>
+      <h2>尺寸梯度</h2>
+      <p class="mute">32px 及以下自动换成小尺寸字形：去掉两条短藤，线宽加倍，底板几乎铺满。否则 16px 时线条会细到不足一个像素。</p>
+    </div>
+    <div class="ladder" id="ladder"></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <span class="eyebrow">Before / after</span>
+      <h2>改了什么</h2>
+    </div>
+    <div class="ba">
+      <figure><div class="pic"><img alt="原版黑白图标" src="/*@BEFORE*/"></div><figcaption>原版 · 位图，圆角矩形底板</figcaption></figure>
+      <figure><div class="pic" id="after"></div><figcaption>新版 · 矢量，超椭圆底板，节点与线条分离</figcaption></figure>
+    </div>
+    <ul class="changes">
+      <li>根节点和线条之间留出约 16 单位空隙，节点读起来是独立的"网关"，不再是线条末端的一个疙瘩。</li>
+      <li>线宽从约 26 统一到 24，三个头的卷曲弧度和开口统一，整体放大 1.1 倍并把重心上移。</li>
+      <li>底板从圆角矩形改为 n = 5 超椭圆，转角曲率连续，缩小后边缘更圆润。</li>
+      <li>新增 16–32px 专用的小尺寸字形；原版在这些尺寸下五条线会糊成一团。</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+/*@GEOMETRY*/
+const NS = 'http://www.w3.org/2000/svg';
+const vars = s => ({ '--r0': s.r0 + 'deg', '--dl': s.dl + 's', '--sw': s.sw + 'deg', '--sp': s.sp + 's', '--sd': s.sd + 's', '--hv': s.hv + 'deg', '--bd': s.bd + 's' });
+
+function mark(size, opts = {}) {
+  const g = size <= 32 ? GEOMETRY.COMPACT : GEOMETRY.FULL;
+  const { tile = true, intro = true, live = true, active = false, hover = false, ink, tileFill } = opts;
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 1024 1024');
+  svg.setAttribute('width', size); svg.setAttribute('height', size);
+  svg.setAttribute('aria-hidden', 'true');
+  svg.classList.add('hm');
+  if (intro) svg.classList.add('hm-intro');
+  if (live) svg.classList.add('hm-live');
+  if (active) svg.classList.add('hm-active');
+  if (hover) svg.classList.add('hm-hover');
+  svg.style.setProperty('--hm-w', g.stroke + 'px');
+  svg.style.setProperty('--hm-dot-y', g.dot.cy + 'px');
+  if (ink) svg.style.setProperty('--hm-ink', ink);
+  if (tileFill) svg.style.setProperty('--hm-tile', tileFill);
+  let html = tile ? `<path class="hm-tile" d="${g.tilePath}"/>` : '';
+  html += `<circle class="hm-ring" cx="512" cy="${g.dot.cy}" r="${g.dot.r}"/>`;
+  for (const s of g.strands) {
+    const st = Object.entries(vars(s)).map(([k, v]) => `${k}:${v}`).join(';');
+    html += `<g class="hm-s" style="${st}"><g class="hm-sway"><g class="hm-open"><path class="hm-line" pathLength="1" d="${s.d}"/><path class="hm-bead" pathLength="1" d="${s.d}"/></g></g></g>`;
+  }
+  html += `<g class="hm-core"><circle class="hm-dot" cx="512" cy="${g.dot.cy}" r="${g.dot.r}"/></g>`;
+  svg.innerHTML = html;
+  return svg;
+}
+
+function replay(svg) {
+  svg.classList.remove('hm-intro');
+  void svg.getBoundingClientRect();
+  svg.classList.add('hm-intro');
+}
+
+// Stage
+const stage = document.getElementById('stage');
+const state = { active: true, live: true, light: false };
+let hero;
+function buildHero() {
+  hero?.remove();
+  hero = mark(640, {
+    active: state.active, live: state.live, hover: true,
+    ink: state.light ? '#0b0b0c' : '#ffffff', tileFill: state.light ? '#ffffff' : '#0b0b0c'
+  });
+  hero.addEventListener('click', () => replay(hero));
+  stage.prepend(hero);
+}
+buildHero();
+const toggle = (id, key) => {
+  const b = document.getElementById(id);
+  b.addEventListener('click', () => {
+    state[key] = !state[key];
+    b.setAttribute('aria-pressed', String(state[key]));
+    hero.classList.toggle(key === 'active' ? 'hm-active' : 'hm-live', state[key]);
+    if (key === 'light') buildHero();
+  });
+};
+toggle('c-active', 'active'); toggle('c-live', 'live'); toggle('c-tile', 'light');
+document.getElementById('c-replay').addEventListener('click', () => replay(hero));
+
+// States
+const STATES = [
+  { t: '入场', p: '节点弹出，线条从节点里描出，同时像蕨叶一样展开并轻微过冲。点击卡片重播。', m: '0 → 1.38s\npop 0.56s  draw 0.78s\nopen 1.0s', o: { live: false }, replayOnClick: true },
+  { t: '待机', p: '每条线各自以不同周期和相位摆动，节点缓慢呼吸，整体不会同步重复。', m: 'sway ±1.2–2.8°\nperiod 2.7–3.8s\nbreathe 1 → 1.1', o: { intro: false } },
+  { t: '路由中', p: '网关运行时，节点发出涟漪，数据包依次沿线送到各个头。', m: 'cycle 2.4s\npacket 1.8× 线宽\nring scale 1 → 2.8', o: { intro: false, active: true } },
+  { t: '悬停', p: '指针移上去时，五条线以弹簧曲线向外张开，移开后回弹。', m: 'spread ±3–10°\n0.62s spring\nbezier(.3,1.7,.5,1)', o: { intro: false, hover: true } }
+];
+const statesEl = document.getElementById('states');
+for (const s of STATES) {
+  const card = document.createElement('article');
+  card.className = 'state';
+  const box = document.createElement('div'); box.className = 'tilebox';
+  const m = mark(240, s.o);
+  box.append(m);
+  if (s.replayOnClick) { card.style.cursor = 'pointer'; card.addEventListener('click', () => replay(m)); }
+  card.append(box);
+  card.insertAdjacentHTML('beforeend', `<h3>${s.t}</h3><p>${s.p}</p><div class="mono">${s.m.replace(/\n/g, '<br>')}</div>`);
+  statesEl.append(card);
+}
+
+// Dope sheet
+(function dope() {
+  const svg = document.getElementById('dope');
+  const L = 96, R = 880, T = 18, row = 34, end = 1.4;
+  const x = t => L + (t / end) * (R - L);
+  const names = ['中茎', '左头', '右头', '左藤', '右藤'];
+  const rows = [{ name: '节点', draw: [0, 0.56], open: null }]
+    .concat(GEOMETRY.FULL.strands.map((s, i) => ({ name: names[i], draw: [s.dl, s.dl + 0.78], open: [s.dl, s.dl + 1.0] })));
+  let h = '';
+  for (let t = 0; t <= end + 1e-9; t += 0.2) {
+    h += `<line class="grid" x1="${x(t)}" x2="${x(t)}" y1="${T - 6}" y2="${T + rows.length * row}"/>`;
+    h += `<text x="${x(t)}" y="${T + rows.length * row + 18}" text-anchor="middle">${t.toFixed(1)}s</text>`;
+  }
+  rows.forEach((r, i) => {
+    const y = T + i * row + 8;
+    h += `<text class="lab" x="0" y="${y + 13}">${r.name}</text>`;
+    if (r.open) h += `<rect class="open" x="${x(r.open[0])}" y="${y}" width="${x(r.open[1]) - x(r.open[0])}" height="18" rx="3"/>`;
+    h += `<rect class="draw" x="${x(r.draw[0])}" y="${y + 5}" width="${x(r.draw[1]) - x(r.draw[0])}" height="8" rx="2"/>`;
+  });
+  svg.innerHTML = h;
+})();
+
+// Ladder
+const ladder = document.getElementById('ladder');
+[256, 128, 64, 48, 'split', 32, 24, 16].forEach(sz => {
+  if (sz === 'split') { const d = document.createElement('div'); d.className = 'split'; ladder.append(d); return; }
+  const r = document.createElement('div');
+  r.className = 'rung' + (sz <= 32 ? ' compact' : '');
+  r.append(mark(sz, { intro: false, live: sz >= 48 }));
+  r.insertAdjacentHTML('beforeend', `<span class="mono">${sz}${sz <= 32 ? ' · 小字形' : ''}</span>`);
+  ladder.append(r);
+});
+
+// After
+document.getElementById('after').append(mark(256, { intro: false, live: false }));
+</script>

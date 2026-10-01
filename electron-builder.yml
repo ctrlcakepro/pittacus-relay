@@ -1,0 +1,58 @@
+appId: io.github.ctrlcakepro.pittacus-relay
+productName: Pittacus Relay
+copyright: Copyright © 2026 Pittacus Relay contributors
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: resources
+    to: .
+    filter:
+      - '*.png'
+      - '*.ico'
+# productName contains a space; keep download file names space-free.
+artifactName: Pittacus-Relay-${version}-${os}-${arch}.${ext}
+
+# Switch off Electron features that would let another program on this machine run
+# code as Pittacus Relay (and so reach its keychain / safeStorage-protected keys).
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+
+nsis:
+  # One installer per architecture instead of a 2x-sized combined one.
+  buildUniversalInstaller: false
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Pittacus Relay
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  # No Apple Developer ID yet: ship ad-hoc signed, unnotarized builds.
+  identity: '-'
+  hardenedRuntime: false
+  notarize: false
+
+dmg:
+  title: ${productName} ${version}
+
+publish: null
