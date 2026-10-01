@@ -1,8 +1,34 @@
 # Pittacus Relay
 
-本地 LLM API 聚合桌面应用。把各家厂商的 API Key 放进 Pittacus Relay，它会在本机 `127.0.0.1` 起一个网关，并给你**一个地址 + 一个本地密钥**；再一键写入 Claude Code / opencode 的配置，之后直接在工具自带的 `/model` 列表里切换不同厂商的模型，不用改配置、不用切换器。
+**你的 API Key 保险柜 + 本地模型网关。** 各家厂商的真实 API Key 加密锁在 Pittacus Relay 里，Claude Code、opencode 这些 agent 工具拿到的只是一把**只能在你这台电脑上用、随时可换**的本地密钥；同时你可以直接在工具自带的 `/model` 列表里切换不同厂商的模型，不用改配置、不用切换器。
 
 > 名字来自古希腊七贤之一、米蒂利尼的庇塔库斯（Pittacus of Mytilene）。标志是一只九头蛇：身体是你本机的网关，每个蛇头是一家模型提供方。开发期代号为 Hydra。
+
+## API 保险柜：真实 Key 不出门
+
+常见做法是把厂商 Key 直接写进 agent 工具的配置文件，于是它会出现在 `~/.claude/settings.json`、环境变量、agent 能读到的任何地方。Pittacus Relay 反过来：**Key 只交给保险柜，工具只拿通行证。**
+
+接入 Claude Code 后，`~/.claude/settings.json` 里写入的是这样的内容：
+
+```jsonc
+"env": {
+  "ANTHROPIC_BASE_URL": "http://127.0.0.1:17800",
+  "ANTHROPIC_AUTH_TOKEN": "pittacus-…"   // 本地密钥，不是任何厂商的 Key
+}
+```
+
+真实 Key 只在 Pittacus Relay 转发请求的那一刻，由网关写进发往厂商的 https 请求头；它不写入任何工具配置，不出现在界面进程里，也不进入请求日志。接入时还会移除该文件 `env` 中原有的 `ANTHROPIC_API_KEY`（"还原"时放回）。
+
+**万一配置泄露了，别人拿到的是什么？**
+
+| 场景 | 直接写真实 Key | 用 Pittacus Relay |
+|---|---|---|
+| 把 dotfiles / `settings.json` 推到了 GitHub | 厂商 Key 公开，可在任何地方被盗刷 | 只有一把本地密钥，它只在你本机的 `127.0.0.1` 网关上有效 |
+| 截图、录屏、贴配置求助时露出 | 同上 | 同上；在"概览"页点"重新生成"，旧密钥立即失效，已接入的工具自动同步（手动配置的工具需改用新密钥） |
+| agent 被提示注入，去读环境变量或配置文件 | 读到厂商 Key，可带走到别处使用 | 读到的仍是本地密钥，带出本机就没用（但在本机上它照样能通过网关调用模型，这本来就是 agent 的正常权限） |
+| 要吊销 | 逐家登录厂商控制台重新生成，再改所有用到它的地方 | 重新生成本地密钥即可；厂商 Key 不受影响，无需改动 |
+
+这层隔离防的是**配置文件和 agent 环境这条泄露路径**，而不是"本机上的一切"——同一系统账户下运行的恶意程序仍有办法拿到 Key，详见下方[安全](#安全)一节的"防护边界"。
 
 ## 下载与安装
 
@@ -38,11 +64,13 @@ macOS 另提供同架构的 `.zip` 包，解压后把 `Pittacus Relay.app` 拖�
 ## 工作方式
 
 ```
+ 工具只持有本地密钥                  保险柜：真实 Key 加密保存在这里
 Claude Code ──(Anthropic 格式)──┐
                                 ├─► Pittacus Relay 127.0.0.1:17800 ──按模型名路由──► DeepSeek / Kimi / GLM / Qwen / …
-opencode ────(OpenAI 格式)──────┘         注入各家真实 Key
+opencode ────(OpenAI 格式)──────┘    校验本地密钥 → 换上该厂商的真实 Key → https 转发
 ```
 
+- 网关不会把工具发来的请求头原样转发：发往厂商的请求头由 Pittacus Relay 重新构造，本地密钥不会离开本机；厂商的响应头也只放行内容类型、限流等少数字段。
 - 模型名格式为 `供应商ID/模型`，如 `kimi/kimi-k2`；无歧义时也接受裸模型名。
 - 工具请求了 Pittacus Relay 不认识的模型（如 Claude Code 内置的 `claude-haiku-*`），按"轻量模型 / 主模型"兜底。
 - 第一期**不做协议互转**：请求直接转发到厂商自己的 Anthropic 或 OpenAI 兼容端点。
@@ -59,7 +87,7 @@ opencode ────(OpenAI 格式)──────┘         注入各家�
 
 ## 安全
 
-**厂商的真实 API Key 只留在 Pittacus Relay 里。** 写进 Claude Code / opencode 配置文件的只有 Pittacus Relay 的本地密钥，可随时一键更换。
+保险柜的设计见上文[API 保险柜](#api-保险柜真实-key-不出门)；下面是具体的防护措施。
 
 - **只在本机**：网关只监听 `127.0.0.1`，所有请求需携带本地密钥；请求的 Host 必须是本机地址、且不接受来自网页的跨站请求（防 DNS rebinding）。
 - **加密存储**：厂商 Key 用系统密钥存储（Electron `safeStorage`；Windows 为 DPAPI，macOS 为钥匙串）加密后保存，界面进程拿不到明文。
