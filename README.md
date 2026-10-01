@@ -1,6 +1,6 @@
 # Pittacus Relay
 
-**你的 API Key 保险柜 + 本地模型网关。** 各家厂商的真实 API Key 加密锁在 Pittacus Relay 里，Claude Code、opencode 这些 agent 工具拿到的只是一把**只能在你这台电脑上用、随时可换**的本地密钥；同时你可以直接在工具自带的 `/model` 列表里切换不同厂商的模型，不用改配置、不用切换器。
+**你的 API Key 保险柜 + 本地模型网关。** 各家厂商的真实 API Key 加密锁在 Pittacus Relay 里，Claude Code、Codex、opencode 这些 agent 工具拿到的只是一把**只能在你这台电脑上用、随时可换**的本地密钥；同时你可以直接在工具自带的 `/model` 列表里切换不同厂商的模型，不用改配置、不用切换器。
 
 > 名字来自古希腊七贤之一、米蒂利尼的庇塔库斯（Pittacus of Mytilene）。标志是一只九头蛇：身体是你本机的网关，每个蛇头是一家模型提供方。开发期代号为 Hydra。
 
@@ -66,14 +66,15 @@ macOS 另提供同架构的 `.zip` 包，解压后把 `Pittacus Relay.app` 拖�
 ```
  工具只持有本地密钥                  保险柜：真实 Key 加密保存在这里
 Claude Code ──(Anthropic 格式)──┐
-                                ├─► Pittacus Relay 127.0.0.1:17800 ──按模型名路由──► DeepSeek / Kimi / GLM / Qwen / …
+Codex ───────(Responses API)────┼─► Pittacus Relay 127.0.0.1:17800 ──按模型名路由──► DeepSeek / Kimi / GLM / Qwen / …
 opencode ────(OpenAI 格式)──────┘    校验本地密钥 → 换上该厂商的真实 Key → https 转发
 ```
 
 - 网关不会把工具发来的请求头原样转发：发往厂商的请求头由 Pittacus Relay 重新构造，本地密钥不会离开本机；厂商的响应头也只放行内容类型、限流等少数字段。
 - 模型名格式为 `供应商ID/模型`，如 `kimi/kimi-k2`；无歧义时也接受裸模型名。
 - 工具请求了 Pittacus Relay 不认识的模型（如 Claude Code 内置的 `claude-haiku-*`），按"轻量模型 / 主模型"兜底。
-- 第一期**不做协议互转**：请求直接转发到厂商自己的 Anthropic 或 OpenAI 兼容端点。
+- Anthropic 与 Chat Completions 请求直接转发到厂商自己的 Anthropic 或 OpenAI 兼容端点，**不做 Anthropic ↔ OpenAI 互转**。
+- 唯一的转换是为 Codex 做的：Codex 只说 OpenAI Responses API，而多数国内厂商只提供 Chat Completions。对这类上游，网关把 `/v1/responses` 请求转换为 `/chat/completions`，再把流式回复（文本、工具调用、思考内容）转回 Responses 事件；在供应商的"高级"设置里勾选 Responses API（OpenAI 预设默认勾选）则原样转发。转换不支持网页搜索、图片生成等由 OpenAI 托管的工具。
 - 不做订阅账号（OAuth）转发，只聚合正规 API Key。
 
 ## 接入的工具
@@ -81,9 +82,18 @@ opencode ────(OpenAI 格式)──────┘    校验本地密钥 
 | 工具 | Pittacus Relay 写入的配置 | 切换方式 |
 |---|---|---|
 | Claude Code（v2.1.242+） | `~/.claude/settings.json` 的 `env` 与 `modelPicker` | `/model` |
+| Codex | `~/.codex/config.toml` 中的 `model_provider`、`model`、`model_catalog_json` 与 `[model_providers.pittacus]`；模型目录写入 `~/.codex/pittacus-models.json` | `/model` |
 | opencode | `~/.config/opencode/opencode.json` 中的 `provider.pittacus` | 模型列表中的 `pittacus/…` |
 
 写入前会记录原值；"还原"只撤销 Pittacus Relay 写入的字段。增删模型、改端口、换密钥后会自动同步到已接入的工具。
+
+关于 Codex：
+
+- 只列出有 OpenAI 兼容地址的模型；只有 Anthropic 端点的供应商（如 Anthropic 官方）暂不能用于 Codex。
+- `config.toml` 按行编辑，注释、顺序和其他配置（MCP 服务器等）保持原样。若文件里已用其他写法（行内表、点号键）定义了 `pittacus` provider，Pittacus Relay 不会覆盖，会提示手动处理。
+- 模型目录会**替换** Codex 的内置模型列表（与 Claude Code 的 `replaceBuiltInOptions` 一致）。目录条目优先以本机 Codex 缓存（`~/.codex/models_cache.json`）中的模型为模板，沿用其完整的 agent 指令；上下文窗口按 128K 保守填写。
+- 经转换的模型不提供推理强度选项（Chat Completions 没有统一的对应参数）；原生 Responses 上游提供 low / medium / high。
+- 设置了 `CODEX_HOME` 时写入该目录。已打开的 Codex 需重启才会读到新配置。
 
 ## 安全
 
@@ -91,14 +101,14 @@ opencode ────(OpenAI 格式)──────┘    校验本地密钥 
 
 - **只在本机**：网关只监听 `127.0.0.1`，所有请求需携带本地密钥；请求的 Host 必须是本机地址、且不接受来自网页的跨站请求（防 DNS rebinding）。
 - **加密存储**：厂商 Key 用系统密钥存储（Electron `safeStorage`；Windows 为 DPAPI，macOS 为钥匙串）加密后保存，界面进程拿不到明文。
-- **Key 与域名绑定**：修改供应商地址时，只要域名变了就必须重新填写 Key，已保存的 Key 不会被带到新地址。
+- **Key 与地址绑定**：修改供应商地址时（包括同一域名下换路径），必须重新填写 Key，已保存的 Key 不会被带到新地址。
 - **不走明文、不跟随跳转**：上游只允许 https（本机地址如 Ollama 除外）；上游返回重定向时 Pittacus Relay 直接报错，不会带着 Key 跟过去。
 - **文件权限**：Pittacus Relay 写入的配置文件在 macOS 上仅当前用户可读（0600）。
 - **应用加固**：窗口禁止跳转到任何外部页面，IPC 只响应 Pittacus Relay 自己的界面；安装包关闭了 Electron 的 RunAsNode、`NODE_OPTIONS`、`--inspect` 等可被其他程序借用的入口，拒绝以远程调试参数启动，并校验 asar 完整性。
-- **复制 Key 需验证**：在"供应商"页可以把某家的真实 Key 复制出来，但必须先在"设置 → 密钥保护"设置 PIN，每次复制都要输入 PIN，或开启后改用 Windows Hello / Touch ID。校验在主进程完成，界面进程始终拿不到明文；连续输错 5 次后按 30 秒起、逐次翻倍（最长 15 分钟）锁定，重启应用不会清零。复制的内容 30 秒后自动从剪贴板清除，并标记为不进入 Windows 剪贴板历史与云剪贴板（macOS 上标记为隐藏内容，供剪贴板管理工具识别）。忘记 PIN 只能重置，重置会同时清除所有已保存的 Key。
+- **复制 Key 需验证**：在"供应商"页可以把某家的真实 Key 复制出来，但必须先在"设置 → 密钥保护"设置 PIN，每次复制都要输入 PIN，或开启后改用 Windows Hello / Touch ID。首次设置 PIN 也要先通过 Windows Hello / Touch ID 确认是本人，以免别人抢先设置 PIN 后复制 Key；设备上没有这类系统验证时无法确认，界面会提示尽早自行设置。校验在主进程完成，界面进程始终拿不到明文；连续输错 5 次后按 30 秒起、逐次翻倍（最长 15 分钟）锁定，重启应用不会清零。复制的内容 30 秒后自动从剪贴板清除，并标记为不进入 Windows 剪贴板历史与云剪贴板（macOS 上标记为隐藏内容，供剪贴板管理工具识别）。忘记 PIN 只能重置，重置会同时清除所有已保存的 Key。
 - **不看对话**：请求日志与用量统计只记录概要和 token 数，不记录对话内容，没有遥测。
 
-**防护边界**（如实说明）：系统密钥存储能防止配置文件被拷走后解密、防止其他系统账户读取；但无法防御已在你账户下运行的恶意程序——它和 agent 工具一样能读到本地密钥。PIN 与 Windows Hello / Touch ID 只是复制前的身份确认，防的是别人趁你离开时在已解锁的电脑上把 Key 复制走，不是额外的加密层；Key 一旦进入剪贴板，同一账户下的其他程序在清除前都能读到。另外，目前安装包尚未代码签名，见路线图。
+**防护边界**（如实说明）：系统密钥存储能防止配置文件被拷走后解密、防止其他系统账户读取；但无法防御已在你账户下运行的恶意程序——它和 agent 工具一样能读到本地密钥。PIN 与 Windows Hello / Touch ID 只是复制前的身份确认，防的是别人趁你离开时在已解锁的电脑上把 Key 复制走，不是额外的加密层；Key 一旦进入剪贴板，同一账户下的其他程序在清除前都能读到。接入 Claude Code 时，原 `settings.json` 里的 Key 会移入还原记录，并用同样的系统密钥存储加密，不会以明文留在 `~/.claude/` 下。另外，目前安装包尚未代码签名，见路线图。
 
 ## Code signing policy
 
@@ -128,7 +138,7 @@ npm run install:win  # 打包 + 静默覆盖安装到本机并启动（改完代
 
 改图标：标志是矢量绘制的，几何数据与动效参数在 `src/renderer/src/brand/geometry.ts`，动效样式在 `hydra-mark.css`（标志是一只九头蛇，文件名沿用 hydra）。修改后运行 `npm run brand`（需要 Python + Pillow，可用 `PYTHON` 环境变量指定解释器），会生成 `build/icon.png`（macOS）、`build/icon.ico`（Windows）、`resources/` 下的窗口与托盘图标，以及 `design/brand/` 下的黑白 SVG / PNG / ICO 全套和动效展示页 `showcase.html`。旧的紫色图标与生成脚本备份在 `design/brand/reference/violet/`。
 
-`PITTACUS_RELAY_DATA_DIR`、`CLAUDE_CONFIG_DIR`、`XDG_CONFIG_HOME` 可把应用数据和写入目标指向临时目录，便于测试而不影响真实配置。
+`PITTACUS_RELAY_DATA_DIR`、`CLAUDE_CONFIG_DIR`、`CODEX_HOME`、`XDG_CONFIG_HOME` 可把应用数据和写入目标指向临时目录，便于测试而不影响真实配置。
 
 目录结构：
 
@@ -147,5 +157,5 @@ src/shared/    主进程与界面之间的类型契约
 - [ ] macOS 签名与公证（需 Apple Developer ID），去掉首次打开的系统拦截
 - [ ] 自动更新
 - [ ] OpenAI ↔ Anthropic 协议互转（让只有 OpenAI 端点的模型也能用于 Claude Code）
-- [ ] Codex（OpenAI Responses API）接入
+- [x] Codex 接入（OpenAI Responses API，必要时转换为 Chat Completions）
 - 设想：鸿蒙 PC 版（暂不排期；需先在真机验证沙箱能否写入工具配置、终端能否访问本地端口）

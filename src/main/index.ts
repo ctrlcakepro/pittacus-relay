@@ -18,6 +18,7 @@ import { pathToFileURL } from 'node:url'
 import { RelayService, type LoginItem } from '../core/service'
 import { ConfigStore, plainCodec, type SecretCodec } from '../core/store'
 import { ClaudeCodeIntegration } from '../core/integrations/claudeCode'
+import { CodexIntegration } from '../core/integrations/codex'
 import { OpencodeIntegration } from '../core/integrations/opencode'
 import type { Accent, KeyAuth, LanguagePref, ProviderDraft, ThemePref } from '../shared/api'
 import { t } from '../shared/i18n'
@@ -312,7 +313,12 @@ function registerIpc(): void {
   handle('applyIntegration', (id: string) => service.applyIntegration(id))
   handle('restoreIntegration', (id: string) => service.restoreIntegration(id))
   handle('copyProviderKey', (id: string, auth: KeyAuth) => service.copyProviderKey(id, auth))
-  handle('setPin', (pin: string, auth?: KeyAuth) => service.setPin(pin, auth))
+  handle('setPin', async (pin: string, auth?: KeyAuth) => {
+    // A first PIN needs the OS prompt whenever it exists, so availability must be current,
+    // not whatever the startup probe (possibly still running) found.
+    await systemAuth.refresh()
+    return service.setPin(pin, auth)
+  })
   handle('removePin', (auth: KeyAuth) => service.removePin(auth))
   handle('resetPin', () => service.resetPin())
   handle('setSystemAuth', async (enabled: boolean, auth?: KeyAuth) => {
@@ -332,7 +338,8 @@ async function startApp(): Promise<void> {
   service = new RelayService({
     fetchImpl: upstreamFetch(),
     store: new ConfigStore(join(app.getPath('userData'), 'config.json'), codec),
-    integrations: [new ClaudeCodeIntegration(), new OpencodeIntegration()],
+    // The codec also seals the credentials Claude Code's settings held before Pittacus Relay took over.
+    integrations: [new ClaudeCodeIntegration(undefined, codec), new CodexIntegration(), new OpencodeIntegration()],
     secureStorage: codec.secure,
     loginItem: createLoginItem(),
     systemAuth,

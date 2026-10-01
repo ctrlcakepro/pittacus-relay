@@ -297,6 +297,17 @@ function ProviderEditor({
               <option value="x-api-key">{t('providers.authXApiKey')}</option>
               <option value="bearer">{t('providers.authBearer')}</option>
             </select>
+
+            <label>{t('providers.responsesApi')}</label>
+            <label className="row" title={t('providers.responsesApiHint')}>
+              <input
+                type="checkbox"
+                checked={!!draft.openaiResponses}
+                disabled={!draft.openaiBaseUrl}
+                onChange={(e) => set('openaiResponses', e.target.checked)}
+              />
+              <span className="hint">{t('providers.responsesApiHint')}</span>
+            </label>
           </div>
         )}
 
@@ -366,6 +377,7 @@ function toDraft(p: ProviderView): ProviderDraft {
     presetId: p.presetId,
     anthropicBaseUrl: p.anthropicBaseUrl,
     openaiBaseUrl: p.openaiBaseUrl,
+    openaiResponses: p.openaiResponses,
     anthropicAuth: p.anthropicAuth ?? 'both',
     apiKey: '',
     models: p.models,
@@ -383,6 +395,7 @@ function fromPreset(preset: ProviderPreset, existing: ProviderView[], t: T): Pro
     presetId: preset.id,
     anthropicBaseUrl: preset.anthropicBaseUrl,
     openaiBaseUrl: preset.openaiBaseUrl,
+    openaiResponses: preset.openaiResponses,
     anthropicAuth: preset.anthropicAuth,
     apiKey: '',
     models: [],

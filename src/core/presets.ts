@@ -5,6 +5,8 @@ export interface ProviderPreset {
   name: string
   anthropicBaseUrl?: string
   openaiBaseUrl?: string
+  /** Serves the Responses API natively at the OpenAI base. */
+  openaiResponses?: boolean
   anthropicAuth: AnthropicAuthMode
   /** Where users create a key. */
   keyUrl?: string
@@ -64,6 +66,7 @@ export const PRESETS: ProviderPreset[] = [
     id: 'openai',
     name: 'OpenAI',
     openaiBaseUrl: 'https://api.openai.com/v1',
+    openaiResponses: true,
     anthropicAuth: 'bearer',
     keyUrl: 'https://platform.openai.com/api-keys'
   },

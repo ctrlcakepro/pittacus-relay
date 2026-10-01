@@ -17,6 +17,11 @@ export interface Provider {
   anthropicBaseUrl?: string
   /** OpenAI-compatible base including the version segment (Pittacus Relay appends /chat/completions). */
   openaiBaseUrl?: string
+  /**
+   * The OpenAI base also serves /responses natively. Otherwise Responses requests (Codex)
+   * are translated to /chat/completions.
+   */
+  openaiResponses?: boolean
   anthropicAuth?: AnthropicAuthMode
   apiKey: string
   /** Enabled upstream model IDs. */

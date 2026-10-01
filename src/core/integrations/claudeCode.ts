@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { t } from '../../shared/i18n'
 import { listModels } from '../router'
+import { plainCodec, type SecretCodec } from '../store'
 import { readJsonObject, removeFile, writeJsonObject, type Json } from './jsonFile'
 import type { ApplyResult, Integration, IntegrationContext, IntegrationStatus } from './types'
 
@@ -15,11 +16,17 @@ const ENV_KEYS = [
   'ANTHROPIC_DEFAULT_SONNET_MODEL',
   'ANTHROPIC_DEFAULT_HAIKU_MODEL'
 ] as const
+// Originals that are real credentials: their backup is sealed like the provider keys, so
+// taking them out of settings.json does not just move them to another plaintext file.
+const SECRET_KEYS: readonly string[] = ['ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY']
 
 interface SavedState {
   version: 1
   hadEnv: boolean
+  /** Originals; null for absent keys and for those kept in `sealedEnv`. */
   env: Record<string, string | null>
+  /** Original credentials, encrypted with the shell's SecretCodec. */
+  sealedEnv?: Record<string, string>
   modelPicker: unknown
 }
 
@@ -37,7 +44,10 @@ export class ClaudeCodeIntegration implements Integration {
   readonly id = 'claude-code'
   readonly name = 'Claude Code'
 
-  constructor(private readonly settingsPath = defaultClaudeSettingsPath()) {}
+  constructor(
+    private readonly settingsPath = defaultClaudeSettingsPath(),
+    private readonly codec: SecretCodec = plainCodec
+  ) {}
 
   private get statePath(): string {
     return `${this.settingsPath}.pittacus-state.json`
@@ -63,14 +73,19 @@ export class ClaudeCodeIntegration implements Integration {
     if (!models.length) throw new Error(t('integration.ccNoModels'))
 
     const settings: Json = readJsonObject(this.settingsPath) ?? {}
-    if (!readJsonObject(this.statePath)) {
+    const saved = readJsonObject(this.statePath) as SavedState | null
+    if (!saved) {
       const state: SavedState = {
         version: 1,
         hadEnv: 'env' in settings,
         env: Object.fromEntries(ENV_KEYS.map((k) => [k, settings.env?.[k] ?? null])),
         modelPicker: settings.modelPicker ?? null
       }
+      this.seal(state)
       writeJsonObject(this.statePath, state as unknown as Json)
+    } else if (this.seal(saved)) {
+      // Records written before sealing existed still hold the credentials in plaintext.
+      writeJsonObject(this.statePath, saved as unknown as Json)
     }
 
     const env: Json = { ...(settings.env ?? {}) }
@@ -100,14 +115,24 @@ export class ClaudeCodeIntegration implements Integration {
     }
   }
 
-  restore(): void {
+  restore(): string[] {
     const state = readJsonObject(this.statePath) as SavedState | null
     if (!state) throw new Error(t('integration.noRestoreRecord'))
 
+    const lost: string[] = []
     const settings: Json = readJsonObject(this.settingsPath) ?? {}
     const env: Json = { ...(settings.env ?? {}) }
     for (const key of ENV_KEYS) {
-      const original = state.env[key]
+      let original = state.env[key]
+      const sealed = state.sealedEnv?.[key]
+      if (typeof sealed === 'string') {
+        try {
+          original = this.codec.decrypt(sealed)
+        } catch {
+          // The OS key store can no longer open it; the credential cannot come back.
+          lost.push(key)
+        }
+      }
       if (original === null || original === undefined) delete env[key]
       else env[key] = original
     }
@@ -119,5 +144,20 @@ export class ClaudeCodeIntegration implements Integration {
 
     writeJsonObject(this.settingsPath, settings)
     removeFile(this.statePath)
+    return lost.length ? [t('integration.ccSealedLost', { keys: lost.join(', ') })] : []
+  }
+
+  /** Moves plaintext credentials in `state.env` into `sealedEnv`; true when anything moved. */
+  private seal(state: SavedState): boolean {
+    if (!this.codec.secure) return false
+    let changed = false
+    for (const key of SECRET_KEYS) {
+      const value = state.env?.[key]
+      if (typeof value !== 'string' || !value) continue
+      state.sealedEnv = { ...state.sealedEnv, [key]: this.codec.encrypt(value) }
+      state.env[key] = null
+      changed = true
+    }
+    return changed
   }
 }

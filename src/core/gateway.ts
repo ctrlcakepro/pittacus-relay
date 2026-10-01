@@ -3,12 +3,14 @@ import { timingSafeEqual } from 'node:crypto'
 import { Readable } from 'node:stream'
 import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import type { RelayConfig, Provider, RequestLog } from './types'
+import { chatToResponse, responseEvents, responsesToChat, ResponsesStream, type ToolMap } from './responses'
 import { listModels, resolveModel, type WireFormat } from './router'
 import { checkLocalRequest, isSafeUpstream } from './security'
 import { UsageTap } from './usage'
 
 const MAX_BODY_BYTES = 64 * 1024 * 1024
 const MAX_LOGS = 200
+const MAX_ERROR_BYTES = 64 * 1024
 const DEFAULT_ANTHROPIC_VERSION = '2023-06-01'
 
 // Upstream response headers worth passing back to the client.
@@ -82,7 +84,7 @@ export class Gateway {
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     const path = url.pathname.replace(/\/+$/, '') || '/'
-    const format: WireFormat = path.includes('/chat/completions') ? 'openai' : 'anthropic'
+    const format: WireFormat = /\/(chat\/completions|responses)$/.test(path) ? 'openai' : 'anthropic'
 
     const rejected = checkLocalRequest(headerValue(req, 'host'), headerValue(req, 'origin'))
     if (rejected) return sendError(res, format, 403, rejected)
@@ -104,6 +106,9 @@ export class Gateway {
     }
     if (req.method === 'POST' && (path === '/v1/chat/completions' || path === '/chat/completions')) {
       return this.proxy(req, res, cfg, 'openai', '/chat/completions', url.search)
+    }
+    if (req.method === 'POST' && (path === '/v1/responses' || path === '/responses')) {
+      return this.proxy(req, res, cfg, 'openai', '/responses', url.search)
     }
     return sendError(res, format, 404, `Pittacus Relay does not serve ${req.method} ${path} yet.`)
   }
@@ -153,8 +158,11 @@ export class Gateway {
     body.model = resolved.upstreamModel
 
     const { provider } = resolved
+    // Upstreams without a native Responses API get the request as a chat completion.
+    const translate = path === '/responses' && !provider.openaiResponses
+    const plan = translate ? responsesToChat(body, resolved.upstreamModel) : undefined
     const base = (format === 'anthropic' ? provider.anthropicBaseUrl : provider.openaiBaseUrl)!
-    const target = base.replace(/\/+$/, '') + path + search
+    const target = base.replace(/\/+$/, '') + (plan ? '/chat/completions' : path) + search
     // Also covers configs saved before https became mandatory.
     if (!isSafeUpstream(target)) {
       const message = `Pittacus Relay will not send the ${provider.name} API key over plain http. Use an https address.`
@@ -174,7 +182,7 @@ export class Gateway {
       upstream = await this.fetchImpl(target, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...headers },
-        body: JSON.stringify(body),
+        body: JSON.stringify(plan?.body ?? body),
         signal: controller.signal,
         // Following a redirect would hand custom auth headers (x-api-key) to whatever host it names.
         redirect: 'manual'
@@ -198,6 +206,10 @@ export class Gateway {
       await upstream.body?.cancel()
       finish(200, 'count_tokens estimated locally')
       return sendJson(res, 200, { input_tokens: estimateTokens(body) })
+    }
+
+    if (plan) {
+      return this.answerTranslated(res, upstream, plan.tools, plan.stream, resolved.relayModel, log, finish)
     }
 
     const outHeaders: Record<string, string> = { 'x-pittacus-model': resolved.relayModel }
@@ -227,6 +239,80 @@ export class Gateway {
     const usage = tap?.result()
     if (usage) log.usage = usage
     finish(res.writableFinished ? upstream.status : 499, errorText)
+  }
+
+  /** Sends a Chat Completions answer back to a Responses client, in Responses form. */
+  private async answerTranslated(
+    res: ServerResponse,
+    upstream: Response,
+    tools: ToolMap,
+    stream: boolean,
+    model: string,
+    log: RequestLog,
+    finish: (status: number, error?: string) => void
+  ): Promise<void> {
+    const headers: Record<string, string> = { 'x-pittacus-model': model }
+    upstream.headers.forEach((value, key) => {
+      if (PASS_HEADERS.test(key) && key !== 'content-type') headers[key] = value
+    })
+    const sseUpstream = /event-stream/i.test(upstream.headers.get('content-type') ?? '')
+    const tap = new UsageTap(sseUpstream)
+
+    if (!upstream.ok || !upstream.body) {
+      const text = await readLimited(upstream, MAX_ERROR_BYTES)
+      const message = upstreamErrorMessage(text) ?? `upstream ${upstream.status}`
+      res.writeHead(upstream.ok ? 502 : upstream.status, { ...headers, 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: { message, type: upstream.status >= 500 ? 'api_error' : 'invalid_request_error', code: upstream.status } }))
+      return finish(upstream.ok ? 502 : upstream.status, `upstream ${upstream.status}`)
+    }
+
+    if (!sseUpstream) {
+      // A whole JSON answer: either nothing was streamed, or the upstream ignored "stream".
+      const text = await readLimited(upstream, MAX_BODY_BYTES)
+      tap.push(Buffer.from(text))
+      let response: Record<string, unknown>
+      try {
+        response = chatToResponse(JSON.parse(text), model, tools)
+      } catch {
+        finish(502, 'unreadable upstream reply')
+        return sendError(res, 'openai', 502, 'The provider returned a reply Pittacus Relay could not read.')
+      }
+      const usage = tap.result()
+      if (usage) log.usage = usage
+      if (stream) {
+        res.writeHead(200, { ...headers, 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+        res.end(responseEvents(response))
+      } else {
+        sendJson(res, 200, response, headers)
+      }
+      return finish(200)
+    }
+
+    res.writeHead(200, { ...headers, 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+    const translator = new ResponsesStream(model, tools, (chunk) => {
+      if (!res.destroyed) res.write(chunk)
+    })
+    const body = Readable.fromWeb(upstream.body as unknown as WebReadableStream)
+    let error: string | undefined
+    try {
+      for await (const chunk of body) {
+        tap.push(chunk as Buffer)
+        translator.push(chunk as Buffer)
+      }
+      translator.end()
+    } catch (err) {
+      if (res.destroyed) {
+        const usage = tap.result()
+        if (usage) log.usage = usage
+        return finish(499)
+      }
+      error = `upstream stream broke: ${(err as Error).message}`
+      translator.fail(error)
+    }
+    const usage = tap.result()
+    if (usage) log.usage = usage
+    if (!res.destroyed) await new Promise<void>((resolve) => res.end(resolve))
+    finish(res.writableFinished ? 200 : 499, error)
   }
 
   private pushLog(log: RequestLog): void {
@@ -322,8 +408,32 @@ export function estimateTokens(body: Record<string, unknown>): number {
   return Math.max(1, cjk + Math.ceil((text.length - cjk) / 4))
 }
 
-function sendJson(res: ServerResponse, status: number, payload: unknown): void {
-  res.writeHead(status, { 'content-type': 'application/json' })
+async function readLimited(res: Response, limit: number): Promise<string> {
+  if (!res.body) return ''
+  const chunks: Buffer[] = []
+  let size = 0
+  for await (const chunk of Readable.fromWeb(res.body as unknown as WebReadableStream)) {
+    size += (chunk as Buffer).length
+    if (size > limit) break
+    chunks.push(chunk as Buffer)
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+/** The message inside an OpenAI- or Anthropic-style error body, if there is one. */
+function upstreamErrorMessage(text: string): string | undefined {
+  try {
+    const parsed = JSON.parse(text)
+    const message = parsed?.error?.message ?? parsed?.message
+    if (typeof message === 'string' && message) return message
+  } catch {
+    // not JSON
+  }
+  return text.trim().slice(0, 500) || undefined
+}
+
+function sendJson(res: ServerResponse, status: number, payload: unknown, headers: Record<string, string> = {}): void {
+  res.writeHead(status, { ...headers, 'content-type': 'application/json' })
   res.end(JSON.stringify(payload))
 }
 

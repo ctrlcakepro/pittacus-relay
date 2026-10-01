@@ -149,10 +149,17 @@ describe('provider key protection', () => {
     return { service, calls }
   }
 
-  it('keeps the stored key when the provider origins do not change', () => {
+  it('keeps the stored key when the provider addresses do not change', () => {
     const { service } = serviceWithCalls()
-    const edited = draft({ originalId: 'ds', apiKey: '', anthropicBaseUrl: 'https://api.deepseek.com/v2/anthropic' })
+    const edited = draft({ originalId: 'ds', apiKey: '', name: 'Renamed', models: ['deepseek-reasoner'] })
     expect(service.saveProvider(edited).state.providers[0].keyHint).toBe('••••real')
+  })
+
+  it('refuses to move a stored key to another path on the same host', () => {
+    const { service } = serviceWithCalls()
+    // Multi-tenant gateways put the account in the path.
+    const moved = draft({ originalId: 'ds', apiKey: '', anthropicBaseUrl: 'https://api.deepseek.com/v2/anthropic' })
+    expect(() => service.saveProvider(moved)).toThrow(/重新填写 API Key/)
   })
 
   it('refuses to point a stored key at a new origin', async () => {

@@ -19,17 +19,19 @@ function setup(opts: { systemOk?: boolean; available?: boolean } = {}) {
   const prompts: string[] = []
   const clock = { now: 1_000_000 }
   const clipboard: SecretClipboard = { clearAfterSeconds: 30, copy: async (s) => void copied.push(s) }
+  // Mutable so a test can let the first-PIN prompt pass and fail later ones.
+  const system = { ok: opts.systemOk ?? true }
   const systemAuth: SystemAuth = {
     kind: 'windows-hello',
     available: () => opts.available ?? true,
     verify: async (reason) => {
       prompts.push(reason)
-      return opts.systemOk ?? true
+      return system.ok
     }
   }
   const make = () =>
     new RelayService({ store: new ConfigStore(file), integrations: [], secureStorage: false, clipboard, systemAuth, now: () => clock.now })
-  return { file, copied, prompts, clock, make, service: make() }
+  return { file, copied, prompts, clock, system, make, service: make() }
 }
 
 describe('copying provider keys', () => {
@@ -108,13 +110,14 @@ describe('Windows Hello / Touch ID', () => {
     expect(service.state().keyGuard.systemAuthEnabled).toBe(true)
     await service.copyProviderKey('ds', { system: true })
     expect(copied).toEqual([KEY])
-    expect(prompts).toEqual(['复制 DeepSeek 的 API Key'])
+    expect(prompts).toEqual(['设置 Pittacus Relay 的 PIN', '复制 DeepSeek 的 API Key'])
   })
 
   it('falls back to the PIN when the prompt fails or is unavailable', async () => {
-    const failing = setup({ systemOk: false })
+    const failing = setup()
     await failing.service.setPin('2468')
     await failing.service.setSystemAuth(true, { pin: '2468' })
+    failing.system.ok = false
     await expect(failing.service.copyProviderKey('ds', { system: true })).rejects.toThrow(/验证未通过，请输入 PIN/)
     await failing.service.copyProviderKey('ds', { pin: '2468' })
     expect(failing.copied).toEqual([KEY])
@@ -122,6 +125,37 @@ describe('Windows Hello / Touch ID', () => {
     const absent = setup({ available: false })
     await absent.service.setPin('2468')
     await expect(absent.service.setSystemAuth(true, { pin: '2468' })).rejects.toThrow(/无法使用 Windows Hello/)
+  })
+})
+
+describe('setting the first PIN', () => {
+  it('needs the OS prompt when the device has one', async () => {
+    const { service, copied, prompts } = setup({ systemOk: false })
+    await expect(service.setPin('2468')).rejects.toThrow(/验证未通过，PIN 未设置/)
+    expect(prompts).toEqual(['设置 Pittacus Relay 的 PIN'])
+    expect(service.state().keyGuard.pinSet).toBe(false)
+    await expect(service.copyProviderKey('ds', { pin: '2468' })).rejects.toThrow(/设置 PIN/)
+    expect(copied).toEqual([])
+  })
+
+  it('asks again after a reset, and is first come, first served without an OS prompt', async () => {
+    const { service, prompts } = setup()
+    await service.setPin('2468')
+    await service.resetPin()
+    await service.setPin('1357')
+    expect(prompts).toEqual(['设置 Pittacus Relay 的 PIN', '设置 Pittacus Relay 的 PIN'])
+
+    const bare = setup({ available: false })
+    await bare.service.setPin('2468')
+    expect(bare.prompts).toEqual([])
+    expect(bare.service.state().keyGuard.pinSet).toBe(true)
+  })
+
+  it('does not prompt when changing an existing PIN with the PIN', async () => {
+    const { service, prompts } = setup()
+    await service.setPin('2468')
+    await service.setPin('1357', { pin: '2468' })
+    expect(prompts).toEqual(['设置 Pittacus Relay 的 PIN'])
   })
 })
 

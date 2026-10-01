@@ -148,6 +148,7 @@ export function PinSetup({
         }}
       >
         {intro && <p className="hint">{intro}</p>}
+        {!changing && <FirstPinNote guard={guard} />}
         <div className="field-grid">
           {changing && (
             <>
@@ -207,6 +208,17 @@ export function PinSetup({
   )
 }
 
+/** The first PIN is confirmed with the OS prompt when there is one; otherwise it is first come, first served. */
+function FirstPinNote({ guard }: { guard: KeyGuardState }) {
+  const { t } = useI18n()
+  const name = systemAuthName(t, guard.systemAuthKind)
+  return guard.systemAuthAvailable ? (
+    <p className="hint">{t('keyGuard.firstPinVerified', { name })}</p>
+  ) : (
+    <div className="notice warn">{t('keyGuard.firstPinUnverified', { name })}</div>
+  )
+}
+
 type Dialog = 'setup' | 'remove' | 'enableSystem' | null
 
 export function KeyProtectionCard({ state, run, apply }: PageProps) {
@@ -234,6 +246,7 @@ export function KeyProtectionCard({ state, run, apply }: PageProps) {
         {t('keyGuard.hint', { seconds: g.clipboardClearSeconds, windows: IS_WINDOWS ? t('keyGuard.hintWindows') : '' })}
       </p>
       {g.lockedUntil && <div className="notice warn">{t('keyGuard.locked')}</div>}
+      {!g.pinSet && !g.systemAuthAvailable && <FirstPinNote guard={g} />}
       <div className="field-grid">
         <label>PIN</label>
         <div className="row wrap">

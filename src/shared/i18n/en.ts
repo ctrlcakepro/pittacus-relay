@@ -147,6 +147,8 @@ export const en: Dictionary = {
   'keyGuard.newPinPlaceholder': 'At least {count} characters, digits or letters',
   'keyGuard.confirmPin': 'Confirm new PIN',
   'keyGuard.verifyAndSave': 'Verify with {name} and save',
+  'keyGuard.firstPinVerified': 'Saving asks you to confirm it is you with {name}, so no one can set a PIN and copy keys while you are away.',
+  'keyGuard.firstPinUnverified': '{name} is unavailable on this device, so the first PIN cannot be tied to you: whoever sets it first can copy keys. Set it yourself soon.',
 
   // Providers
   'providers.sub': 'Add API keys from each vendor and pick the models to use in your tools. Keys stay on this machine.',
@@ -173,7 +175,7 @@ export const en: Dictionary = {
   'providers.addTitle': 'Add {name}',
   'providers.providerFallback': 'provider',
   'providers.name': 'Name',
-  'providers.keyPlaceholderEdit': 'Leave empty to keep the saved key (required again if the address domain changed)',
+  'providers.keyPlaceholderEdit': 'Leave empty to keep the saved key (required again if the address changed)',
   'providers.keyPlaceholder': "Paste the provider's API key",
   'providers.getKey': 'Get a key',
   'providers.advanced': 'Advanced (addresses, ID, auth)',
@@ -185,6 +187,8 @@ export const en: Dictionary = {
   'providers.authBoth': 'x-api-key + Bearer (most compatible)',
   'providers.authXApiKey': 'x-api-key only',
   'providers.authBearer': 'Bearer only',
+  'providers.responsesApi': 'Responses API',
+  'providers.responsesApiHint': 'The upstream serves /responses natively (e.g. OpenAI). Otherwise Codex requests are translated to Chat Completions.',
   'providers.models': 'Models',
   'providers.selected': '{count} selected',
   'providers.filter': 'Filter',
@@ -204,6 +208,11 @@ export const en: Dictionary = {
     'Writes env and modelPicker in ~/.claude/settings.json. Then type /model in Claude Code to switch between all Pittacus Relay models.',
   'integrations.ccNote2': 'The model list needs Claude Code v2.1.242 or later; restart open sessions once to pick up the new config.',
   'integrations.ccNote3': 'Only models with an Anthropic-compatible URL are listed.',
+  'integrations.cxNote1':
+    'Registers a provider named pittacus in ~/.codex/config.toml and makes it the default; the model catalog goes to ~/.codex/pittacus-models.json. Then type /model in Codex to switch.',
+  'integrations.cxNote2':
+    'Codex only speaks the Responses API: for upstreams without it, Pittacus Relay translates to Chat Completions (tool calls and thinking included); hosted tools such as web search are unavailable.',
+  'integrations.cxNote3': 'Only models with an OpenAI-compatible URL are listed; restart a running Codex to pick up the new config.',
   'integrations.ocNote1':
     'Registers a provider named pittacus in ~/.config/opencode/opencode.json; models appear as pittacus/<model>.',
   'integrations.ocNote2': 'Only models with an OpenAI-compatible URL are listed.',
@@ -272,6 +281,8 @@ export const en: Dictionary = {
   'svc.reasonCopyKey': 'Copy the {name} API key',
   'svc.keyCopied': 'Copied the {name} API key. It will be cleared from the clipboard in {seconds} seconds',
   'svc.reasonChangePin': 'Change the Pittacus Relay PIN',
+  'svc.reasonSetPin': 'Set the Pittacus Relay PIN',
+  'svc.setPinNotVerified': '{label} verification failed. The PIN was not set.',
   'svc.pinChanged': 'PIN changed',
   'svc.pinSet': 'PIN set. You can now copy provider API keys',
   'svc.reasonRemovePin': 'Remove the Pittacus Relay PIN',
@@ -296,7 +307,7 @@ export const en: Dictionary = {
   'svc.syncedSuffix': ', and synced to {names}',
   'svc.systemLabel': 'System',
   'svc.urlChangedReenterKey':
-    "The provider address now points to a different domain. To keep the key from being sent there, enter the API key again.",
+    "The provider address has changed. To keep the key from being sent to the new address, enter the API key again.",
   'svc.portInUse': 'Port {port} is already in use. Choose another port.',
   'svc.portNoPermission': 'No permission to listen on port {port}.',
   'svc.gatewayStartFailed': 'The gateway failed to start: {error}',
@@ -321,9 +332,12 @@ export const en: Dictionary = {
   'router.keyUnreadable': 'The {name} API key cannot be read. Enter it again in Pittacus Relay.',
   'integration.ccNoDefault': 'Set a default model in Pittacus Relay first.',
   'integration.ccNoModels': 'No models are usable from Claude Code (an Anthropic-compatible endpoint is required).',
+  'integration.ccSealedLost': 'The original {keys} could no longer be decrypted (the system key store changed) and was not restored. Enter it in Claude Code again.',
   'integration.noRestoreRecord': 'There are no Pittacus Relay changes to restore.',
   'integration.ocJsonc':
     'Found {path}. Pittacus Relay does not edit config files with comments yet; add the pittacus provider by hand.',
+  'integration.cxNoModels': 'No models are usable from Codex (an OpenAI-compatible endpoint is required).',
+  'integration.cxForeign': '{path} already defines a pittacus provider in another form. Pittacus Relay will not overwrite it; remove it first.',
   'integration.ocNoModels': 'No models are usable from opencode (an OpenAI-compatible endpoint is required).',
 
   // Desktop shell

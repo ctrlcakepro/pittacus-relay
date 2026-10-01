@@ -55,18 +55,25 @@ export function isSafeUpstream(target: string): boolean {
   }
 }
 
-function origins(p: UpstreamUrls): string[] {
-  return [p.anthropicBaseUrl, p.openaiBaseUrl].filter((u): u is string => !!u).map((u) => new URL(u).origin)
+/** Base URLs as the server sees them: "..", case and trailing slashes do not make a new address. */
+function baseUrls(p: UpstreamUrls): string[] {
+  return [p.anthropicBaseUrl, p.openaiBaseUrl]
+    .filter((u): u is string => !!u)
+    .map((u) => {
+      const url = new URL(u)
+      return url.origin + url.pathname.replace(/\/+$/, '')
+    })
 }
 
 /**
- * A stored API key may only follow a provider edit when every upstream origin was
+ * A stored API key may only follow a provider edit when every upstream base URL was
  * already trusted with it. Otherwise whoever can edit settings (or a compromised UI)
- * could point an existing key at a server of their choosing.
+ * could point an existing key at a server of their choosing. Whole URLs, not origins:
+ * multi-tenant gateways (e.g. Cloudflare AI Gateway) put the account in the path.
  */
 export function keyMayFollow(previous: UpstreamUrls, next: UpstreamUrls): boolean {
-  const trusted = new Set(origins(previous))
-  return origins(next).every((o) => trusted.has(o))
+  const trusted = new Set(baseUrls(previous))
+  return baseUrls(next).every((u) => trusted.has(u))
 }
 
 /**

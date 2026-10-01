@@ -27,5 +27,6 @@ export interface Integration {
   readonly name: string
   status(ctx: IntegrationContext): IntegrationStatus
   apply(ctx: IntegrationContext): ApplyResult
-  restore(): void
+  /** Returns warnings about originals that could not be brought back. */
+  restore(): string[] | void
 }

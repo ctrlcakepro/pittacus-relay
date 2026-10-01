@@ -38,6 +38,7 @@ export interface ProviderDraft {
   presetId?: string
   anthropicBaseUrl?: string
   openaiBaseUrl?: string
+  openaiResponses?: boolean
   anthropicAuth: AnthropicAuthMode
   /** Empty keeps the stored key when editing. */
   apiKey?: string

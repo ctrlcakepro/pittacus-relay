@@ -35,6 +35,23 @@ beforeAll(async () => {
       res.writeHead(countTokensStatus, { 'content-type': 'application/json' })
       return res.end(JSON.stringify({ input_tokens: 42 }))
     }
+    if (req.url?.includes('/fail/')) {
+      res.writeHead(429, { 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ error: { message: 'slow down' } }))
+    }
+    if (req.url?.endsWith('/chat/completions') && body?.stream) {
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'x-ratelimit-remaining': '9' })
+      const chunk = (delta: object, extra: object = {}) =>
+        res.write(`data: ${JSON.stringify({ choices: [{ index: 0, delta, ...extra }] })}\n\n`)
+      chunk({ reasoning_content: 'think' })
+      chunk({ content: 'Hel' })
+      chunk({ content: 'lo' })
+      chunk({ tool_calls: [{ index: 0, id: 'call_1', function: { name: 'exec_command', arguments: '{"cmd":' } }] })
+      chunk({ tool_calls: [{ index: 0, function: { arguments: '"ls"}' } }] })
+      chunk({}, { finish_reason: 'tool_calls' })
+      res.write(`data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 7, completion_tokens: 3 } })}\n\n`)
+      return res.end('data: [DONE]\n\n')
+    }
     if (body?.stream) {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'request-id': 'req_1', 'x-secret': 'nope' })
       res.write('event: message_start\ndata: {"a":1}\n\n')
@@ -296,5 +313,77 @@ describe('gateway', () => {
       body: 'not json'
     })
     expect(res.status).toBe(400)
+  })
+})
+
+describe('responses api (Codex)', () => {
+  const codexBody = {
+    model: 'kimi/kimi-k2',
+    instructions: 'base',
+    input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }],
+    tools: [{ type: 'function', name: 'exec_command', parameters: { type: 'object' } }, { type: 'web_search' }],
+    stream: true,
+    store: false,
+    include: ['reasoning.encrypted_content']
+  }
+
+  it('translates to chat completions and streams Responses events back', async () => {
+    const res = await post('/v1/responses', codexBody)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('text/event-stream')
+    expect(res.headers.get('x-ratelimit-remaining')).toBe('9')
+    expect(seen[0].path).toBe('/v1/chat/completions')
+    expect(seen[0].headers.authorization).toBe('Bearer sk-kimi')
+    expect(seen[0].body).toMatchObject({
+      model: 'kimi-k2',
+      stream: true,
+      stream_options: { include_usage: true },
+      messages: [
+        { role: 'system', content: 'base' },
+        { role: 'user', content: 'hi' }
+      ]
+    })
+    expect(seen[0].body.tools).toEqual([{ type: 'function', function: { name: 'exec_command', parameters: { type: 'object' } } }])
+    expect(seen[0].body.store).toBeUndefined()
+
+    const events = (await res.text())
+      .split('\n\n')
+      .filter(Boolean)
+      .map((e) => JSON.parse(e.split('\n')[1].slice(6)))
+    expect(events[0].type).toBe('response.created')
+    expect(events.at(-1).type).toBe('response.completed')
+    const done = events.filter((e) => e.type === 'response.output_item.done').map((e) => e.item)
+    expect(done.map((i) => i.type)).toEqual(['reasoning', 'message', 'function_call'])
+    expect(done[1].content[0].text).toBe('Hello')
+    expect(done[2]).toMatchObject({ call_id: 'call_1', name: 'exec_command', arguments: '{"cmd":"ls"}' })
+    expect(events.at(-1).response.usage).toMatchObject({ input_tokens: 7, output_tokens: 3 })
+
+    const log = gateway.logs().at(-1)!
+    expect(log.endpoint).toBe('/responses')
+    expect(log.status).toBe(200)
+    expect(log.usage).toEqual({ input: 7, output: 3, cached: 0 })
+  })
+
+  it('passes Responses requests through to upstreams that serve them natively', async () => {
+    cfg.providers[0].openaiResponses = true
+    const res = await post('/v1/responses', { ...codexBody, stream: false })
+    expect(res.status).toBe(200)
+    expect(seen[0].path).toBe('/v1/responses')
+    expect(seen[0].body).toMatchObject({ model: 'kimi-k2', store: false, input: codexBody.input })
+  })
+
+  it('reports upstream errors in OpenAI form with the upstream status', async () => {
+    cfg.providers[0].openaiBaseUrl = `${upstreamUrl}/fail/v1`
+    const res = await post('/v1/responses', codexBody)
+    expect(res.status).toBe(429)
+    expect((await res.json()).error.message).toBe('slow down')
+  })
+
+  it('answers non-streaming requests with a response object', async () => {
+    const res = await post('/v1/responses', { ...codexBody, stream: false })
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.object).toBe('response')
+    expect(json.status).toBe('completed')
   })
 })

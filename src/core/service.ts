@@ -231,6 +231,7 @@ export class RelayService {
       presetId: draft.presetId,
       anthropicBaseUrl,
       openaiBaseUrl,
+      openaiResponses: openaiBaseUrl && draft.openaiResponses ? true : undefined,
       anthropicAuth: draft.anthropicAuth,
       apiKey,
       models: [...new Set(draft.models.map((m) => m.trim()).filter(Boolean))],
@@ -370,8 +371,8 @@ export class RelayService {
 
   restoreIntegration(id: string): ActionResult {
     const integration = this.findIntegration(id)
-    integration.restore()
-    return { state: this.state(), message: t('svc.integrationRestored', { name: integration.name }) }
+    const warnings = integration.restore() ?? []
+    return { state: this.state(), message: t('svc.integrationRestored', { name: integration.name }), warnings }
   }
 
   copyProviderKey(id: string, auth: KeyAuth): Promise<ActionResult> {
@@ -395,6 +396,7 @@ export class RelayService {
       checkNewPin(pin)
       const changing = !!this.guard.pin
       if (changing) await this.authorize(auth, t('svc.reasonChangePin'))
+      else await this.verifyFirstPin()
       this.cfg.keyGuard = { ...this.guard, pin: await hashPin(pin), failures: 0, lockedUntil: undefined }
       this.store.save(this.cfg)
       return { state: this.state(), message: t(changing ? 'svc.pinChanged' : 'svc.pinSet') }
@@ -458,6 +460,17 @@ export class RelayService {
     if (!this.guard.systemAuth) throw new Error(t('svc.systemAuthNotEnabled', { label }))
     if (!this.systemAuth.available()) throw new Error(t('svc.systemAuthUnavailable', { label }))
     if (!(await this.systemAuth.verify(reason))) throw new Error(t('svc.systemAuthFailed', { label }))
+  }
+
+  /**
+   * Whoever sets the first PIN can copy every key, so on an unlocked computer that must not
+   * be just anyone: the OS prompt confirms it is the signed-in user. Without one (no Windows
+   * Hello / Touch ID) the first PIN is trust-on-first-use, which the UI warns about.
+   */
+  private async verifyFirstPin(): Promise<void> {
+    if (!this.systemAuth.available()) return
+    const label = systemAuthLabel(this.systemAuth)
+    if (!(await this.systemAuth.verify(t('svc.reasonSetPin')))) throw new Error(t('svc.setPinNotVerified', { label }))
   }
 
   private async checkPin(auth: KeyAuth | undefined): Promise<void> {

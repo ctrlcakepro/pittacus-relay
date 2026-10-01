@@ -16,9 +16,14 @@ describe('security helpers', () => {
     }
   })
 
-  it('lets a key follow path changes but not origin changes', () => {
+  it('lets a key follow only base URLs it was already sent to', () => {
     const before = { anthropicBaseUrl: 'https://a.com/anthropic', openaiBaseUrl: 'https://a.com/v1' }
-    expect(keyMayFollow(before, { openaiBaseUrl: 'https://a.com/v2' })).toBe(true)
+    expect(keyMayFollow(before, { openaiBaseUrl: 'https://a.com/v1' })).toBe(true)
+    expect(keyMayFollow(before, { openaiBaseUrl: 'https://A.com/v1/' })).toBe(true)
+    expect(keyMayFollow(before, { anthropicBaseUrl: 'https://a.com/v1' })).toBe(true)
+    expect(keyMayFollow(before, { openaiBaseUrl: 'https://a.com/v2' })).toBe(false)
+    expect(keyMayFollow(before, { openaiBaseUrl: 'https://a.com/v1/../tenant-b' })).toBe(false)
+    expect(keyMayFollow(before, { openaiBaseUrl: 'https://a.com/v1/sub' })).toBe(false)
     expect(keyMayFollow(before, { openaiBaseUrl: 'http://a.com/v1' })).toBe(false)
     expect(keyMayFollow(before, { openaiBaseUrl: 'https://a.com:8443/v1' })).toBe(false)
     expect(keyMayFollow(before, { ...before, openaiBaseUrl: 'https://b.com/v1' })).toBe(false)

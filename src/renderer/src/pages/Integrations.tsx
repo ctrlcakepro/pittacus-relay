@@ -5,6 +5,7 @@ import { api, Badge, Card, CopyButton, PageHeader, type PageProps } from '../ui'
 
 const NOTES: Record<string, MessageKey[]> = {
   'claude-code': ['integrations.ccNote1', 'integrations.ccNote2', 'integrations.ccNote3'],
+  codex: ['integrations.cxNote1', 'integrations.cxNote2', 'integrations.cxNote3'],
   opencode: ['integrations.ocNote1', 'integrations.ocNote2']
 }
 

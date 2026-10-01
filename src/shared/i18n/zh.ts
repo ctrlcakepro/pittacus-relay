@@ -138,6 +138,8 @@ export const zh = {
   'keyGuard.newPinPlaceholder': '至少 {count} 位，数字或字母均可',
   'keyGuard.confirmPin': '确认新 PIN',
   'keyGuard.verifyAndSave': '用 {name} 验证并保存',
+  'keyGuard.firstPinVerified': '保存时会请你用 {name} 确认是本人，以免他人在你离开时抢先设置 PIN 并复制密钥。',
+  'keyGuard.firstPinUnverified': '这台设备无法使用 {name}，首次设置 PIN 时无法确认是你本人：谁先设置 PIN，谁就能复制密钥。请尽早自己设置。',
 
   // Providers
   'providers.sub': '添加各厂商的 API Key，勾选要在工具里使用的模型。密钥只保存在本机。',
@@ -162,7 +164,7 @@ export const zh = {
   'providers.addTitle': '添加 {name}',
   'providers.providerFallback': '供应商',
   'providers.name': '名称',
-  'providers.keyPlaceholderEdit': '留空则保持原密钥（改了地址域名需重新填写）',
+  'providers.keyPlaceholderEdit': '留空则保持原密钥（改了地址需重新填写）',
   'providers.keyPlaceholder': '粘贴供应商的 API Key',
   'providers.getKey': '去获取',
   'providers.advanced': '高级设置（地址、ID、鉴权方式）',
@@ -174,6 +176,8 @@ export const zh = {
   'providers.authBoth': 'x-api-key + Bearer（兼容性最好）',
   'providers.authXApiKey': '仅 x-api-key',
   'providers.authBearer': '仅 Bearer',
+  'providers.responsesApi': 'Responses API',
+  'providers.responsesApiHint': '上游原生支持 /responses（如 OpenAI）。不勾选时，Codex 的请求会被转换为 Chat Completions。',
   'providers.models': '模型',
   'providers.selected': '已选 {count}',
   'providers.filter': '筛选',
@@ -192,6 +196,11 @@ export const zh = {
   'integrations.ccNote1': '写入 ~/.claude/settings.json 的 env 与 modelPicker，之后在 Claude Code 里输入 /model 即可切换所有 Pittacus Relay 模型。',
   'integrations.ccNote2': '模型列表需要 Claude Code v2.1.242 或更高版本；已打开的会话需重启一次才会读到新配置。',
   'integrations.ccNote3': '仅列出有 Anthropic 兼容地址的模型。',
+  'integrations.cxNote1':
+    '在 ~/.codex/config.toml 中注册名为 pittacus 的供应商并设为默认，模型目录写入 ~/.codex/pittacus-models.json；之后在 Codex 里输入 /model 即可切换。',
+  'integrations.cxNote2':
+    'Codex 只使用 Responses API：上游不支持时，Pittacus Relay 会转换为 Chat Completions（含工具调用与思考内容），网页搜索等托管工具不可用。',
+  'integrations.cxNote3': '仅列出有 OpenAI 兼容地址的模型；已打开的 Codex 需重启才会读到新配置。',
   'integrations.ocNote1': '在 ~/.config/opencode/opencode.json 中注册名为 pittacus 的供应商，模型显示为 pittacus/<模型>。',
   'integrations.ocNote2': '仅列出有 OpenAI 兼容地址的模型。',
   'integrations.manualTitle': '其他工具（手动配置）',
@@ -255,6 +264,8 @@ export const zh = {
   'svc.reasonCopyKey': '复制 {name} 的 API Key',
   'svc.keyCopied': '已复制 {name} 的 API Key，{seconds} 秒后自动从剪贴板清除',
   'svc.reasonChangePin': '修改 Pittacus Relay 的 PIN',
+  'svc.reasonSetPin': '设置 Pittacus Relay 的 PIN',
+  'svc.setPinNotVerified': '{label} 验证未通过，PIN 未设置。',
   'svc.pinChanged': '已修改 PIN',
   'svc.pinSet': '已设置 PIN，现在可以复制供应商的 API Key 了',
   'svc.reasonRemovePin': '移除 Pittacus Relay 的 PIN',
@@ -277,7 +288,7 @@ export const zh = {
   'svc.syncFailed': '同步 {name} 失败：{error}',
   'svc.syncedSuffix': '，并已同步到 {names}',
   'svc.systemLabel': '系统',
-  'svc.urlChangedReenterKey': '供应商地址的域名已更改，为防止密钥被发往新地址，请重新填写 API Key。',
+  'svc.urlChangedReenterKey': '供应商地址已更改，为防止密钥被发往新地址，请重新填写 API Key。',
   'svc.portInUse': '端口 {port} 已被占用，请在设置中更换端口。',
   'svc.portNoPermission': '没有权限监听端口 {port}。',
   'svc.gatewayStartFailed': '网关启动失败：{error}',
@@ -300,8 +311,11 @@ export const zh = {
   'router.keyUnreadable': '{name} 的 API Key 无法读取，请在 Pittacus Relay 中重新填写。',
   'integration.ccNoDefault': '请先在 Pittacus Relay 中设置默认模型。',
   'integration.ccNoModels': '没有可用于 Claude Code 的模型（需要 Anthropic 兼容端点）。',
+  'integration.ccSealedLost': '原配置中的 {keys} 已无法解密（系统密钥存储已变更），未能还原，请在 Claude Code 中重新填写。',
   'integration.noRestoreRecord': '没有可还原的 Pittacus Relay 修改记录。',
   'integration.ocJsonc': '检测到 {path}，Pittacus Relay 暂不修改带注释的配置文件，请手动添加 pittacus provider。',
+  'integration.cxNoModels': '没有可用于 Codex 的模型（需要 OpenAI 兼容端点）。',
+  'integration.cxForeign': '{path} 中已有以其他写法定义的 pittacus provider，Pittacus Relay 不会覆盖它，请先手动删除。',
   'integration.ocNoModels': '没有可用于 opencode 的模型（需要 OpenAI 兼容端点）。',
 
   // Desktop shell
