@@ -18,6 +18,12 @@
 
 各家厂商的真实 API Key 加密锁在 Pittacus Relay 里，Claude Code、Codex、opencode 这些 agent 工具拿到的只是一把**只能在你这台电脑上用、随时可换**的本地密钥；同时你可以直接在工具自带的 `/model` 列表里切换不同厂商的模型，不用改配置、不用切换器。
 
+<p align="center">
+  <img src="design/promo/pittacus-relay-demo.gif" alt="演示：在 Pittacus Relay 中接入 Claude Code，settings.json 里只有本地密钥，然后在 Claude Code 的 /model 列表里切换模型" width="720">
+  <br>
+  <sub>接入 Claude Code，确认 <code>settings.json</code> 里只有本地密钥，再用 <code>/model</code> 切换模型。画面中的密钥已打码。（演示界面为英文）</sub>
+</p>
+
 > 名字来自古希腊七贤之一、米蒂利尼的庇塔库斯（Pittacus of Mytilene）。标志是一只九头蛇：身体是你本机的网关，每个蛇头是一家模型提供方。开发期代号为 Hydra。
 
 ## API 保险柜：真实 Key 不出门
