@@ -1,0 +1,181 @@
+<div align="center">
+
+# Pittacus Relay
+
+**你的 API Key 保险柜 + 本地模型网关。**
+
+[![release](https://img.shields.io/github/v/release/ctrlcakepro/pittacus-relay)](https://github.com/ctrlcakepro/pittacus-relay/releases/latest)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](#下载与安装)
+
+[English](README.md) · 简体中文（当前页面）
+
+[API 保险柜](#api-保险柜真实-key-不出门) · [下载与安装](#下载与安装) · [接入的工具](#接入的工具) · [安全](#安全) · [路线图](#路线图)
+
+</div>
+
+---
+
+各家厂商的真实 API Key 加密锁在 Pittacus Relay 里，Claude Code、Codex、opencode 这些 agent 工具拿到的只是一把**只能在你这台电脑上用、随时可换**的本地密钥；同时你可以直接在工具自带的 `/model` 列表里切换不同厂商的模型，不用改配置、不用切换器。
+
+> 名字来自古希腊七贤之一、米蒂利尼的庇塔库斯（Pittacus of Mytilene）。标志是一只九头蛇：身体是你本机的网关，每个蛇头是一家模型提供方。开发期代号为 Hydra。
+
+## API 保险柜：真实 Key 不出门
+
+常见做法是把厂商 Key 直接写进 agent 工具的配置文件，于是它会出现在 `~/.claude/settings.json`、环境变量、agent 能读到的任何地方。Pittacus Relay 反过来：**Key 只交给保险柜，工具只拿通行证。**
+
+接入 Claude Code 后，`~/.claude/settings.json` 里写入的是这样的内容：
+
+```jsonc
+"env": {
+  "ANTHROPIC_BASE_URL": "http://127.0.0.1:17800",
+  "ANTHROPIC_AUTH_TOKEN": "pittacus-…"   // 本地密钥，不是任何厂商的 Key
+}
+```
+
+真实 Key 只在 Pittacus Relay 转发请求的那一刻，由网关写进发往厂商的 https 请求头；它不写入任何工具配置，不出现在界面进程里，也不进入请求日志。接入时还会移除该文件 `env` 中原有的 `ANTHROPIC_API_KEY`（"还原"时放回）。
+
+**万一配置泄露了，别人拿到的是什么？**
+
+| 场景 | 直接写真实 Key | 用 Pittacus Relay |
+|---|---|---|
+| 把 dotfiles / `settings.json` 推到了 GitHub | 厂商 Key 公开，可在任何地方被盗刷 | 只有一把本地密钥，它只在你本机的 `127.0.0.1` 网关上有效 |
+| 截图、录屏、贴配置求助时露出 | 同上 | 同上；在"概览"页点"重新生成"，旧密钥立即失效，已接入的工具自动同步（手动配置的工具需改用新密钥） |
+| agent 被提示注入，去读环境变量或配置文件 | 读到厂商 Key，可带走到别处使用 | 读到的仍是本地密钥，带出本机就没用（但在本机上它照样能通过网关调用模型，这本来就是 agent 的正常权限） |
+| 要吊销 | 逐家登录厂商控制台重新生成，再改所有用到它的地方 | 重新生成本地密钥即可；厂商 Key 不受影响，无需改动 |
+
+这层隔离防的是**配置文件和 agent 环境这条泄露路径**，而不是"本机上的一切"——同一系统账户下运行的恶意程序仍有办法拿到 Key，详见下方[安全](#安全)一节的"防护边界"。
+
+## 下载与安装
+
+**[前往 Releases 下载最新版本 →](https://github.com/ctrlcakepro/pittacus-relay/releases/latest)**（发布说明里附有各安装包的 SHA-256 校验值）
+
+| 系统 | 安装包 |
+|---|---|
+| Windows 10/11（x64） | `Pittacus-Relay-<版本>-win-x64.exe` |
+| Windows on ARM | `Pittacus-Relay-<版本>-win-arm64.exe` |
+| macOS Apple 芯片（M 系列） | `Pittacus-Relay-<版本>-mac-arm64.dmg` |
+| macOS Intel | `Pittacus-Relay-<版本>-mac-x64.dmg` |
+
+macOS 另提供同架构的 `.zip` 包，解压后把 `Pittacus Relay.app` 拖进"应用程序"即可，效果与 `.dmg` 相同。
+
+目前安装包**没有代码签名**，首次打开会被系统拦截（Windows 版正在申请 SignPath Foundation 的免费开源签名，见 [Code signing policy](#code-signing-policy)）：
+
+- **Windows**：SmartScreen 提示"已保护你的电脑"时，点"更多信息"→"仍要运行"。
+- **macOS**：提示"无法验证开发者"或"已损坏"时，打开"系统设置 → 隐私与安全性"，在底部点"仍要打开"；或在终端执行 `xattr -cr "/Applications/Pittacus Relay.app"` 后再打开。
+
+安装后 Pittacus Relay 常驻托盘（Windows）或菜单栏（macOS）。关闭窗口不会停止网关，要彻底退出请用托盘菜单里的"退出"，或运行 `"Pittacus Relay.exe" --quit`。
+
+启动选项（"设置 → 启动"，托盘菜单里也能切换）：
+
+- **开机自启动**：登录系统后自动运行 Pittacus Relay。Windows 写入当前用户的启动项（卸载时自动清除，升级时保留）；macOS 注册为登录项，首次开启可能需要在"系统设置 → 通用 → 登录项"中允许。
+- **静默启动**：启动时不打开主窗口，只在托盘运行；再次双击 Pittacus Relay 图标或点击托盘图标即可打开。
+
+界面语言支持简体中文与 English（"设置 → 语言"，默认跟随系统），托盘菜单与系统通知随之切换。
+
+外观（"设置 → 外观"）：主题可选跟随系统、浅色或深色；强调色默认为品牌紫，另有蓝、紫、粉、红、橙、黄、绿、青、石墨九种 Apple 系统色，深浅模式下各自使用对应的官方色值。
+
+"概览"页底部的 **API 用量** 按今天 / 7 天 / 30 天汇总请求数、输入 / 输出 tokens 与缓存命中，并按模型列出。Token 数取自供应商响应里的 `usage` 字段（不改动请求和响应），按天、按模型保存在本机的 `usage.json`，保留 90 天，不含对话内容；上游没有返回 `usage` 的请求只计入请求数。接入 opencode 时会打开 `includeUsage`，让流式回复也带上用量。
+
+## 工作方式
+
+```
+ 工具只持有本地密钥                  保险柜：真实 Key 加密保存在这里
+Claude Code ──(Anthropic 格式)──┐
+Codex ───────(Responses API)────┼─► Pittacus Relay 127.0.0.1:17800 ──按模型名路由──► DeepSeek / Kimi / GLM / Qwen / …
+opencode ────(OpenAI 格式)──────┘    校验本地密钥 → 换上该厂商的真实 Key → https 转发
+```
+
+- 网关不会把工具发来的请求头原样转发：发往厂商的请求头由 Pittacus Relay 重新构造，本地密钥不会离开本机；厂商的响应头也只放行内容类型、限流等少数字段。
+- 模型名格式为 `供应商ID/模型`，如 `kimi/kimi-k2`；无歧义时也接受裸模型名。
+- 工具请求了 Pittacus Relay 不认识的模型（如 Claude Code 内置的 `claude-haiku-*`），按"轻量模型 / 主模型"兜底。
+- Anthropic 与 Chat Completions 请求直接转发到厂商自己的 Anthropic 或 OpenAI 兼容端点，**不做 Anthropic ↔ OpenAI 互转**。
+- 唯一的转换是为 Codex 做的：Codex 只说 OpenAI Responses API，而多数国内厂商只提供 Chat Completions。对这类上游，网关把 `/v1/responses` 请求转换为 `/chat/completions`，再把流式回复（文本、工具调用、思考内容）转回 Responses 事件；在供应商的"高级"设置里勾选 Responses API（OpenAI 预设默认勾选）则原样转发。转换不支持网页搜索、图片生成等由 OpenAI 托管的工具。
+- 不做订阅账号（OAuth）转发，只聚合正规 API Key。
+
+## 接入的工具
+
+| 工具 | Pittacus Relay 写入的配置 | 切换方式 |
+|---|---|---|
+| Claude Code（v2.1.242+） | `~/.claude/settings.json` 的 `env` 与 `modelPicker` | `/model` |
+| Codex | `~/.codex/config.toml` 中的 `model_provider`、`model`、`model_catalog_json` 与 `[model_providers.pittacus]`；模型目录写入 `~/.codex/pittacus-models.json` | `/model` |
+| opencode | `~/.config/opencode/opencode.json` 中的 `provider.pittacus` | 模型列表中的 `pittacus/…` |
+
+写入前会记录原值；"还原"只撤销 Pittacus Relay 写入的字段。增删模型、改端口、换密钥后会自动同步到已接入的工具。
+
+关于 Codex：
+
+- 只列出有 OpenAI 兼容地址的模型；只有 Anthropic 端点的供应商（如 Anthropic 官方）暂不能用于 Codex。
+- `config.toml` 按行编辑，注释、顺序和其他配置（MCP 服务器等）保持原样。若文件里已用其他写法（行内表、点号键）定义了 `pittacus` provider，Pittacus Relay 不会覆盖，会提示手动处理。
+- 模型目录会**替换** Codex 的内置模型列表（与 Claude Code 的 `replaceBuiltInOptions` 一致）。目录条目优先以本机 Codex 缓存（`~/.codex/models_cache.json`）中的模型为模板，沿用其完整的 agent 指令；上下文窗口按 128K 保守填写。
+- 经转换的模型不提供推理强度选项（Chat Completions 没有统一的对应参数）；原生 Responses 上游提供 low / medium / high。
+- 设置了 `CODEX_HOME` 时写入该目录。已打开的 Codex 需重启才会读到新配置。
+
+## 安全
+
+保险柜的设计见上文[API 保险柜](#api-保险柜真实-key-不出门)；下面是具体的防护措施。
+
+- **只在本机**：网关只监听 `127.0.0.1`，所有请求需携带本地密钥；请求的 Host 必须是本机地址、且不接受来自网页的跨站请求（防 DNS rebinding）。
+- **加密存储**：厂商 Key 用系统密钥存储（Electron `safeStorage`；Windows 为 DPAPI，macOS 为钥匙串）加密后保存，界面进程拿不到明文。
+- **Key 与地址绑定**：修改供应商地址时（包括同一域名下换路径），必须重新填写 Key，已保存的 Key 不会被带到新地址。
+- **不走明文、不跟随跳转**：上游只允许 https（本机地址如 Ollama 除外）；上游返回重定向时 Pittacus Relay 直接报错，不会带着 Key 跟过去。
+- **文件权限**：Pittacus Relay 写入的配置文件在 macOS 上仅当前用户可读（0600）。
+- **应用加固**：窗口禁止跳转到任何外部页面，IPC 只响应 Pittacus Relay 自己的界面；安装包关闭了 Electron 的 RunAsNode、`NODE_OPTIONS`、`--inspect` 等可被其他程序借用的入口，拒绝以远程调试参数启动，并校验 asar 完整性。
+- **复制 Key 需验证**：在"供应商"页可以把某家的真实 Key 复制出来，但必须先在"设置 → 密钥保护"设置 PIN，每次复制都要输入 PIN，或开启后改用 Windows Hello / Touch ID。首次设置 PIN 也要先通过 Windows Hello / Touch ID 确认是本人，以免别人抢先设置 PIN 后复制 Key；设备上没有这类系统验证时无法确认，界面会提示尽早自行设置。校验在主进程完成，界面进程始终拿不到明文；连续输错 5 次后按 30 秒起、逐次翻倍（最长 15 分钟）锁定，重启应用不会清零。复制的内容 30 秒后自动从剪贴板清除，并标记为不进入 Windows 剪贴板历史与云剪贴板（macOS 上标记为隐藏内容，供剪贴板管理工具识别）。忘记 PIN 只能重置，重置会同时清除所有已保存的 Key。
+- **不看对话**：请求日志与用量统计只记录概要和 token 数，不记录对话内容，没有遥测。
+
+**防护边界**（如实说明）：系统密钥存储能防止配置文件被拷走后解密、防止其他系统账户读取；但无法防御已在你账户下运行的恶意程序——它和 agent 工具一样能读到本地密钥。PIN 与 Windows Hello / Touch ID 只是复制前的身份确认，防的是别人趁你离开时在已解锁的电脑上把 Key 复制走，不是额外的加密层；Key 一旦进入剪贴板，同一账户下的其他程序在清除前都能读到。接入 Claude Code 时，原 `settings.json` 里的 Key 会移入还原记录，并用同样的系统密钥存储加密，不会以明文留在 `~/.claude/` 下。另外，目前安装包尚未代码签名，见路线图。
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).（Windows 版申请中，获批前发布的安装包仍未签名。）
+
+- 签名范围：只签本仓库源码经 GitHub Actions 构建出的 Windows 程序 `Pittacus Relay.exe` 与安装包 `Pittacus-Relay-<版本>-win-*.exe`；随附的上游组件（Electron 运行库等）不使用本项目证书签名。签名配置见 [`.signpath/`](.signpath/)。
+- 每个版本都需人工批准后才会签名。
+- Committers and reviewers: [ctrlcakepro](https://github.com/ctrlcakepro)
+- Approvers: [ctrlcakepro](https://github.com/ctrlcakepro)
+
+**Privacy policy**：This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. 即：Pittacus Relay 没有遥测，只会把请求转发到你自己配置的模型供应商；这些供应商如何处理你的数据，以各自的隐私政策为准。
+
+## 开发
+
+```bash
+npm install
+npm run dev        # 启动开发模式
+npm test           # 网关与配置写入的单元测试
+npm run typecheck
+npm run build
+npm run dist:win   # Windows 安装包 → dist/
+npm run dist:mac   # macOS 安装包（只能在 macOS 上执行）
+npm run install:win  # 打包 + 静默覆盖安装到本机并启动（改完代码后用它更新本地安装版）
+```
+
+推送到 GitHub 后，`.github/workflows/build.yml` 会在 Windows 与 macOS 机器上分别打包；推送 `v*` 标签时自动创建包含全部安装包的草稿 Release。
+
+改图标：标志是矢量绘制的，几何数据与动效参数在 `src/renderer/src/brand/geometry.ts`，动效样式在 `hydra-mark.css`（标志是一只九头蛇，文件名沿用 hydra）。修改后运行 `npm run brand`（需要 Python + Pillow，可用 `PYTHON` 环境变量指定解释器），会生成 `build/icon.png`（macOS）、`build/icon.ico`（Windows）、`resources/` 下的窗口与托盘图标，以及 `design/brand/` 下的黑白 SVG / PNG / ICO 全套和动效展示页 `showcase.html`。旧的紫色图标与生成脚本备份在 `design/brand/reference/violet/`。
+
+`PITTACUS_RELAY_DATA_DIR`、`CLAUDE_CONFIG_DIR`、`CODEX_HOME`、`XDG_CONFIG_HOME` 可把应用数据和写入目标指向临时目录，便于测试而不影响真实配置。
+
+目录结构：
+
+```
+src/core/      网关、路由、配置存储、工具接入（不依赖 Electron，便于移植到鸿蒙版 Electron）
+src/main/      Electron 主进程：窗口、托盘、IPC
+src/preload/   安全桥接（contextIsolation + sandbox）
+src/renderer/  React 界面
+src/shared/    主进程与界面之间的类型契约
+```
+
+## 路线图
+
+- [x] Windows / macOS 安装包（electron-builder + GitHub Actions）
+- [ ] Windows 代码签名（SignPath Foundation，CI 已接入，等待项目获批）
+- [ ] macOS 签名与公证（需 Apple Developer ID），去掉首次打开的系统拦截
+- [ ] 自动更新
+- [ ] OpenAI ↔ Anthropic 协议互转（让只有 OpenAI 端点的模型也能用于 Claude Code）
+- [x] Codex 接入（OpenAI Responses API，必要时转换为 Chat Completions）
+- 设想：鸿蒙 PC 版（暂不排期；需先在真机验证沙箱能否写入工具配置、终端能否访问本地端口）
+
+## 许可证
+
+[MIT](LICENSE)
