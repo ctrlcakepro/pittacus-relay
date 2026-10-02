@@ -18,6 +18,12 @@ English (this page) · [简体中文](README.zh-CN.md)
 
 Your providers' real API keys are locked inside Pittacus Relay. Agent tools such as Claude Code, Codex and opencode only receive a **local key that works on this computer alone and can be replaced at any time**. You can also switch between providers' models from the tool's own `/model` list, with no config editing and no switcher app.
 
+<p align="center">
+  <img src="design/promo/pittacus-relay-demo.gif" alt="Demo: connect Claude Code in Pittacus Relay, see that settings.json holds only a local key, then switch models from Claude Code's /model list" width="720">
+  <br>
+  <sub>Connect Claude Code, check that <code>settings.json</code> holds only a local key, then switch models from <code>/model</code>. Key values are blurred.</sub>
+</p>
+
 > The name comes from Pittacus of Mytilene, one of the Seven Sages of ancient Greece. The logo is a hydra: the body is the gateway on your machine, and each head is a model provider. The development codename was Hydra.
 
 ## API-key vault: real keys stay home
