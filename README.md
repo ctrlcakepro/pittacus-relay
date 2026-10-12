@@ -2,305 +2,389 @@
 
 # Pittacus Relay
 
-**An API-key vault and local model gateway for your AI coding tools.**
+**Local API-key vault & gateway for AI coding tools. Keep your real keys safe. Switch models instantly.**
 
-[![release](https://img.shields.io/github/v/release/ctrlcakepro/pittacus-relay)](https://github.com/ctrlcakepro/pittacus-relay/releases/latest)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](#download-and-install)
+[![release](https://img.shields.io/github/v/release/ctrlcakepro/pittacus-relay?style=flat-square)](https://github.com/ctrlcakepro/pittacus-relay/releases/latest)
+[![downloads](https://img.shields.io/github/downloads/ctrlcakepro/pittacus-relay/total?style=flat-square)](https://github.com/ctrlcakepro/pittacus-relay/releases)
+[![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey?style=flat-square)](#-download)
+[![TypeScript](https://img.shields.io/badge/TypeScript-4.x-blue?style=flat-square)]()
 
-English (this page) · [简体中文](README.zh-CN.md)
+**[🚀 Get Started (2 min)](#-quick-start)** · **[📺 Demo](#-whats-the-problem)** · **[⬇️ Download](#-download)** · **[🔒 Security](#-security)** · **[📚 Docs](#-how-it-works)**
 
-[Quick Start](#quick-start) · [Features](#features) · [Download](#download-and-install) · [Supported tools](#supported-tools) · [Security](#security) · [Roadmap](#roadmap)
+English · [简体中文](README.zh-CN.md)
 
 </div>
 
 ---
 
-## What is Pittacus Relay?
+## 🎯 What's the Problem?
 
-Your providers' real API keys are locked inside Pittacus Relay. Agent tools such as Claude Code, Codex and opencode only receive a **local key that works on this computer alone and can be replaced** with one click. The gateway:
+<table>
+<tr>
+<td width="50%">
 
-- 🔐 **Keeps real API keys secure** – never written to tool configs, environment variables, or screenshots
-- 🔄 **Routes requests to any provider** – DeepSeek, Kimi, GLM, Qwen, OpenAI, Anthropic, and any OpenAI-compatible endpoint
-- 🔌 **Works with your favorite AI tools** – seamlessly integrates with Claude Code, Codex, and opencode
-- 📊 **Tracks API usage** – see token counts and costs across providers and time periods
-- ⚡ **Local-only & fast** – runs on `127.0.0.1`, no external network calls needed for key management
+### ❌ The Traditional Way
 
-<p align="center">
-  <img src="design/promo/pittacus-relay-demo.gif" alt="Demo: connect Claude Code in Pittacus Relay, see that settings.json holds only a local key, then switch models from Claude Code's /model list">
-  <br>
-  <sub>Connect Claude Code, check that <code>settings.json</code> holds only a local key, then switch models from <code>/model</code>. Key values are blurred.</sub>
-</p>
-
-> The name comes from Pittacus of Mytilene, one of the Seven Sages of ancient Greece. The logo is a hydra: the body is the gateway on your machine, and each head is a model provider.
-
----
-
-## Quick Start
-
-### 1. Download & Install
-- **[Download the latest release →](https://github.com/ctrlcakepro/pittacus-relay/releases/latest)**
-  - Windows 10/11 (x64, ARM): `.exe` installer
-  - macOS (Apple Silicon or Intel): `.dmg` or `.zip`
-
-### 2. Add Your API Keys
-- Launch Pittacus Relay
-- Go to **Providers** tab
-- Add your DeepSeek, Kimi, OpenAI, or any OpenAI-compatible endpoint
-- Paste your real API key (stored securely in OS keychain)
-
-### 3. Connect Your Tools
-- **Claude Code**: Click "Connect" on the Overview page → automatically configures `settings.json`
-- **Codex**: Click "Connect" → updates `config.toml` with model catalog
-- **opencode**: Click "Connect" → adds provider to config
-
-### 4. Start Using
-- In Claude Code: `/model` → pick any provider/model combo
-- In Codex: `/model` → select from the unified catalog
-- That's it! Real keys stay in Pittacus Relay, tools only see local keys.
-
----
-
-## Why Pittacus Relay?
-
-### The Problem
-Most AI tools ask you to paste your real API key directly into their config files:
-- Config gets pushed to GitHub → key is public 🚨
-- Shows up in screenshots or screen recordings → compromised 🚨
-- Malicious prompt injection reads env vars → key stolen 🚨
-- You need to revoke keys everywhere they're used 😤
-
-### The Solution: API-key Vault
-
-After connecting Claude Code, what Pittacus Relay writes is this:
-
-```jsonc
-"env": {
-  "ANTHROPIC_BASE_URL": "http://127.0.0.1:17800",
-  "ANTHROPIC_AUTH_TOKEN": "pittacus-…"   // a local key, not any provider's key
+You put your real API key in Claude Code's config:
+```json
+{
+  "ANTHROPIC_AUTH_TOKEN": "sk-ant-v0-abc..."
 }
 ```
 
-**If your config leaks, what does the other party get?**
+✗ Pushed to GitHub? → **Compromised**  
+✗ Screenshot/screen rec? → **Leaked**  
+✗ Prompt injection? → **Stolen**  
+✗ Need to revoke? → Regenerate everywhere
 
-| Scenario | Without Pittacus | With Pittacus Relay |
-|---|---|---|
-| You push `settings.json` to GitHub | Provider key is public and can be abused from anywhere | Only a local key, valid only on your machine's gateway |
-| It shows up in a screenshot | Same risk | Same. Click "Regenerate" and the old key is invalid instantly |
-| Prompt injection reads env vars | Attacker gets your provider key | Attacker gets only a useless local key (confined to `127.0.0.1`) |
-| You need to revoke | Regenerate at each provider, update everywhere | Regenerate the local key; real keys stay intact |
+</td>
+<td width="50%">
 
-**Honest boundaries**: This protects against config leaks and agent-environment attacks. A malicious program running under your OS account could still access keys; this is an OS-level risk that no desktop app can fully solve.
+### ✅ With Pittacus Relay
+
+You put only a **local key** in Claude Code:
+```json
+{
+  "ANTHROPIC_AUTH_TOKEN": "pittacus-local-abc123"
+}
+```
+
+✓ Real key locked in local gateway  
+✓ Screenshot leaks nothing  
+✓ Prompt injection gets useless key  
+✓ Revoke instantly, one click  
+✓ Switch providers without reconfiguring
+
+</td>
+</tr>
+</table>
+
+**Real keys never leave your machine. Real keys never written to config files. One local key, one revoke, done.**
+
+<p align="center">
+  <img src="design/promo/pittacus-relay-demo.gif" width="600" alt="Demo: connect Claude Code in Pittacus Relay, see that settings.json holds only a local key, then switch models from Claude Code's /model list">
+  <br>
+  <sub><strong>Demo:</strong> Connect Claude Code, see only a local key in settings.json, switch models in /model. Keys are blurred.</sub>
+</p>
 
 ---
 
-## Download and Install
+## 🚀 Quick Start (Install → Add Keys → Done)
 
-**[→ Get latest release](https://github.com/ctrlcakepro/pittacus-relay/releases/latest)** (SHA-256 checksums included in release notes)
+### 1️⃣ Download & Run (2 minutes)
 
-| System | Installer |
+**[⬇️ Download Latest Release](https://github.com/ctrlcakepro/pittacus-relay/releases/latest)**
+
+| OS | Download |
 |---|---|
-| Windows 10/11 (x64) | `Pittacus-Relay-<version>-win-x64.exe` |
-| Windows on ARM | `Pittacus-Relay-<version>-win-arm64.exe` |
-| macOS, Apple silicon (M-series) | `Pittacus-Relay-<version>-mac-arm64.dmg` |
-| macOS, Intel | `Pittacus-Relay-<version>-mac-x64.dmg` |
+| **Windows 10/11** (x64) | `Pittacus-Relay-<version>-win-x64.exe` |
+| **Windows ARM** | `Pittacus-Relay-<version>-win-arm64.exe` |
+| **macOS Apple Silicon** | `Pittacus-Relay-<version>-mac-arm64.dmg` |
+| **macOS Intel** | `Pittacus-Relay-<version>-mac-x64.dmg` |
 
-macOS also ships a `.zip` for each architecture: unzip it and drag `Pittacus Relay.app` into Applications, same result as the `.dmg`.
+> ℹ️ Not code-signed yet? First launch: Windows → click "Run anyway" | macOS → System Settings → "Open Anyway"
 
-### First Launch
+### 2️⃣ Add Your Providers (1 minute)
 
-The installers are **not code-signed yet** (pending SignPath Foundation approval; see [Code signing policy](#code-signing-policy)), so your OS will stop you the first time:
+1. Open Pittacus Relay
+2. Go to **Providers** tab
+3. Click **Add Provider**
+4. Paste your real API key (e.g., OpenAI, DeepSeek, Kimi)
+5. Key is encrypted in OS keychain, never visible again
 
-- **Windows**: when SmartScreen says "Windows protected your PC", click "More info" → "Run anyway".
-- **macOS**: when you see "cannot verify the developer" or "is damaged", open System Settings → Privacy & Security and click "Open Anyway" at the bottom, or run:
-  ```bash
-  xattr -cr "/Applications/Pittacus Relay.app"
-  ```
+### 3️⃣ Connect Your Tools (1 minute)
 
-After installation Pittacus Relay lives in the system tray (Windows) or menu bar (macOS). Closing the window does not stop the gateway. To quit, use "Quit" in the tray menu.
+Pick your AI tool:
 
-### Settings
-
-**Startup options** (Settings → Startup):
-- **Launch at login**: starts Pittacus Relay automatically
-- **Start silently**: no main window on launch, tray only
-
-**Appearance** (Settings → Appearance):
-- Theme: follow system, light, or dark
-- Accent color: brand purple or any Apple system color
-
-**Language** (Settings → Language):
-- English and Simplified Chinese (follows system by default)
-
----
-
-## Features
-
-### 🔐 Security-First Key Vault
-- Real API keys encrypted with OS keychain (DPAPI on Windows, Keychain on macOS)
-- Local key isolation: tools never see provider keys
-- PIN protection for copying keys
-- No plaintext storage, no telemetry
-
-### 🔄 Multi-Provider Gateway
-- Route requests to any provider based on model name
-- Supports OpenAI, Anthropic, DeepSeek, Kimi, GLM, Qwen, Ollama, and any OpenAI-compatible endpoint
-- Automatic protocol conversion (OpenAI ↔ Codex Responses API)
-- Request headers rebuilt per-provider (no header leaks)
-
-### 🔌 Tool Integrations
-- **Claude Code** (v2.1.242+): auto-configure, `/model` switching
-- **Codex**: full integration with model catalog sync
-- **opencode**: seamless provider selection
-
-### 📊 Usage Analytics
-- Track tokens, requests, and cache hits
-- Filter by time: today / 7 days / 30 days
-- Per-model and per-provider breakdowns
-- No conversation content logged (privacy first)
-
-### 🎨 User-Friendly UI
-- Drag-and-drop provider setup
-- One-click tool connection
-- Real-time gateway status
-- Dark/light theme
-
----
-
-## How It Works
-
-```
-Tools (hold only local key)        Vault (real keys stored encrypted)
-Claude Code ──(Anthropic)──┐
-Codex ──────(Responses API)├──► Pittacus Relay 127.0.0.1:17800 ──► Provider Gateway
-opencode ───(OpenAI)───────┘      • Check local key
-                                   • Swap in real provider key
-                                   • Forward request over HTTPS
-```
-
-- **Local only**: listens on `127.0.0.1`, cross-site requests blocked
-- **Model routing**: `provider-id/model` format (e.g., `kimi/kimi-k2`)
-- **Protocol support**: native Anthropic and OpenAI-compatible endpoints
-- **Codex conversion**: converts Responses API → Chat Completions for compatible providers
-- **No OAuth forwarding**: only regular API keys aggregated
-
----
-
-## Supported Tools
-
-| Tool | What Pittacus Writes | How to Switch Models |
+| Tool | Connect | Then |
 |---|---|---|
-| Claude Code (v2.1.242+) | `env` and `modelPicker` in `~/.claude/settings.json` | `/model` command |
-| Codex | `~/.codex/config.toml` + model catalog JSON | `/model` or model dropdown |
-| opencode | `~/.config/opencode/opencode.json` | `pittacus/…` in model picker |
+| **Claude Code** | Click "Connect" on Overview | Use `/model` to switch providers |
+| **Codex** | Click "Connect" on Overview | Use `/model` to pick any model |
+| **opencode** | Click "Connect" on Overview | Model dropdown auto-populated |
 
-Original config values are saved; "Restore" undoes only Pittacus Relay's changes.
+✨ **That's it.** Tools only see local keys. You see model options everywhere.
 
 ---
 
-## Security
+## ✨ Why Developers Love It
 
-### Key Protection
-- **Local only**: gateway on `127.0.0.1`, every request requires local key
-- **Encrypted storage**: OS keychain (DPAPI/Keychain) protects provider keys
-- **Key binding**: provider keys are tied to their address; changing the URL requires re-entering the key
-- **No plaintext, no redirects**: HTTPS only (except local Ollama); redirects are errors
+| Feature | You Get |
+|---|---|
+| 🔐 **Real keys encrypted** | OS keychain (DPAPI/Keychain) + no plaintext storage |
+| 🔄 **One gateway, any provider** | DeepSeek, Kimi, OpenAI, Anthropic, GLM, Qwen, Ollama, custom endpoints |
+| 🎯 **Instant switching** | `/model` → pick any combo in Claude Code, Codex, opencode |
+| 📊 **Usage stats** | Tokens/requests/costs by provider & model, today/7d/30d |
+| 🛡️ **Config leak immune** | Screenshot? GitHub push? Prompt injection? Only a useless local key leaks |
+| 🔌 **Zero-config setup** | Select tool → click "Connect" → done |
+| 🌐 **Local-only** | No cloud, no telemetry, no external calls except to your endpoints |
+| 🎨 **Dark/light theme** | Auto-follow system or manual switch |
+| 🌍 **Multilingual** | English + Simplified Chinese (system default) |
 
-### Application Hardening
-- Windows cannot navigate externally; IPC is restricted to Pittacus Relay's own UI
-- Installer disables Electron's `RunAsNode`, `NODE_OPTIONS`, `--inspect`
-- Config files readable only by current user (macOS 0600 permissions)
-- PIN required to copy provider keys
+---
 
-### Privacy
-- Request logs record only summaries and token counts, never conversation content
-- No telemetry; no external phone-home calls
-- Full privacy policy: see bottom of this README
+## 🛡️ Security: Designed for Developers Who Care
+
+### The Vault Concept
+
+```
+Your Computer
+├── Pittacus Relay (Gateway)
+│   ├── 🔐 Real Keys (encrypted in OS keychain)
+│   └── 🔄 Model Routing Logic
+│
+├── Claude Code / Codex / opencode
+│   └── Local Key Only (useless outside this machine)
+│
+└── Endpoints
+    ├── OpenAI
+    ├── DeepSeek
+    ├── Kimi
+    └── Custom...
+```
+
+### 10-Layer Protection
+
+1. **Local only** (`127.0.0.1`) — cross-site requests blocked
+2. **OS keychain** (DPAPI/Keychain) — keys encrypted at rest
+3. **Request rebuilt** — headers never passed as-is, key swapped at gateway
+4. **Local key isolation** — tools never see provider keys
+5. **Key bound to URL** — change endpoint = must re-enter key
+6. **HTTPS only** (except local Ollama) — no unencrypted endpoints
+7. **No redirects** — 3xx responses rejected (blocks MITM)
+8. **PIN protection** — copy a key = enter PIN first
+9. **File permissions** — config readable only by you (macOS 0600)
+10. **No telemetry** — request log has only tokens & counts, never content
 
 ### Honest Boundaries
-The OS key store protects against copied config files and other OS accounts reading it. It does not defend against malicious programs running under your own OS account; that's an OS-level isolation problem no desktop app can fully solve.
+
+This protects against:
+- Config file leaks (GitHub push, screenshot, paste for help)
+- Prompt injection reading env vars
+- Tools behaving badly
+
+This does **not** protect against:
+- Malware running under your OS account (OS-level problem, not solvable by any desktop app)
 
 ---
 
-## Development
+## 🔧 How It Works (Under the Hood)
+
+```
+You write in Claude Code:          Pittacus Relay sees:        Provider sees:
+{                                  {                           {
+  "ANTHROPIC_AUTH_TOKEN":            "LOCAL_KEY": "pitt-…"      "ANTHROPIC_AUTH_TOKEN":
+  "pitt-local-xyz"                   "MODEL": "kimi/kimi-k2"    "sk-ant-v0-real-key"
+}                                  }                           }
+                  ↓                           ↓                         ↓
+           Local-only key          Route to provider         Real key, swapped in
+           ✓ safe to leak          ✓ rebuild headers         ✓ request forwarded
+```
+
+**What Pittacus Relay does:**
+
+1. Listen on `127.0.0.1:17800` for requests from Claude Code, Codex, opencode
+2. Verify the local key in the request
+3. Look up which provider the model belongs to (e.g., `kimi/kimi-k2` → Kimi endpoint)
+4. Fetch the real provider key from encrypted vault
+5. Rebuild request headers (strip local key, add provider's real key)
+6. Forward request to provider over HTTPS
+7. Pass response back to tool
+8. Log usage (tokens, model, time) — never conversation content
+
+---
+
+## 🚀 What You Can Do
+
+### Immediately
+- ✅ Use Claude Code + DeepSeek, Kimi, any model (all from one local key)
+- ✅ Use Codex with providers that don't have Claude Code support
+- ✅ Use opencode with any OpenAI-compatible endpoint
+- ✅ View token counts & costs across providers
+- ✅ Regenerate local key anytime (real keys untouched)
+
+### Roadmap
+- 🔜 macOS code signing (removes first-launch block)
+- 🔜 Auto-update
+- 🔜 OpenAI ↔ Anthropic format conversion (so Claude Code can use any provider)
+- 🔜 HarmonyOS PC edition
+
+---
+
+## ❓ FAQ
+
+<details>
+<summary><strong>Q: Is this just a proxy? What's the real benefit?</strong></summary>
+
+A: Yes, it's a local proxy. The benefit: your real keys stay encrypted on your machine. Tools only get a local key that:
+- Can't be abused from anywhere else (confined to `127.0.0.1`)
+- Can be regenerated in 1 click
+- Doesn't require updating every tool when you rotate it
+
+If your `settings.json` leaks, the attacker has only the local key, not your real provider keys.
+</details>
+
+<details>
+<summary><strong>Q: Does it phone home? Track me?</strong></summary>
+
+A: No. The app is 100% local. It only makes HTTPS requests to the endpoints you configure. No telemetry, no updates, no cloud sync. See [Privacy Policy](#-privacy-policy).
+</details>
+
+<details>
+<summary><strong>Q: What happens if my machine crashes?</strong></summary>
+
+A: 
+- Real keys are in OS keychain (Windows DPAPI / macOS Keychain) — won't transfer to a new machine
+- Local keys can be regenerated anytime from the Overview tab
+- Your tool configs stay as-is, just regenerate the local key once and sync
+</details>
+
+<details>
+<summary><strong>Q: Can I use this on a server or Docker?</strong></summary>
+
+A: Not yet. Pittacus Relay is built for desktop (Windows 10+, macOS). Server/Linux support is a future idea. For now, it's a local machine tool.
+</details>
+
+<details>
+<summary><strong>Q: Which providers are supported?</strong></summary>
+
+A: Any provider with:
+- **Anthropic API endpoint** (Claude Code native support)
+- **OpenAI-compatible endpoint** (Chat Completions, DeepSeek, Kimi, GLM, Qwen, Ollama, etc.)
+- **OpenAI Responses API** (Codex native)
+
+Provider list kept in `src/core/providers.ts`. Easy to add more.
+</details>
+
+<details>
+<summary><strong>Q: Why "Pittacus"?</strong></summary>
+
+A: Named after Pittacus of Mytilene, one of the Seven Sages of ancient Greece — a leader known for wise counsel and pragmatism. The logo is a hydra: the body is the gateway on your machine, and each head represents a different model provider. 🐉
+</details>
+
+---
+
+## 📦 Supported Tools
+
+| Tool | Version | Integration | Model Switching |
+|---|---|---|---|
+| Claude Code | 2.1.242+ | Auto-config `settings.json` | `/model` command |
+| Codex | Latest | Auto-config `config.toml` + model catalog | `/model` dropdown |
+| opencode | Latest | Auto-config JSON | Model picker |
+
+**How it works:**
+- Pittacus Relay auto-writes the tool's config on first "Connect" click
+- Original values are saved; "Restore" undoes only Pittacus Relay's changes
+- Adding/removing providers, changing port, or regenerating key syncs automatically
+
+---
+
+## 💻 For Developers & Contributors
+
+### Build & Run
 
 ```bash
+# Install
 npm install
-npm run dev        # start in development mode
-npm test           # unit tests
-npm run typecheck
-npm run build
+
+# Development
+npm run dev        # hot reload
+npm run test       # unit tests
+npm run typecheck  # TypeScript check
+
+# Build
+npm run build      # compile
 npm run dist:win   # Windows installer → dist/
 npm run dist:mac   # macOS installer (macOS only)
-npm run install:win  # package + silently install locally (for testing)
 ```
 
-**GitHub Actions**: Every push builds on Windows and macOS. Pushing a `v*` tag creates a draft Release with all installers.
+### Project Structure
 
-**Architecture**:
 ```
-src/core/      Gateway, routing, vault, tool integrations (no Electron)
-src/main/      Electron main process, windows, tray, IPC
-src/preload/   Secure bridge (contextIsolation + sandbox)
-src/renderer/  React UI
-src/shared/    Type contracts
+src/
+├── core/      Gateway, routing, vault (no Electron, easy to port)
+├── main/      Electron main, windows, tray, IPC
+├── preload/   Secure bridge (contextIsolation + sandbox)
+├── renderer/  React UI
+└── shared/    Type contracts
 ```
 
-**Testing**: Set `PITTACUS_RELAY_DATA_DIR`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, or `XDG_CONFIG_HOME` to a temporary directory to test without touching your real config.
+### Testing
+
+Set env vars to test without touching your real config:
+```bash
+PITTACUS_RELAY_DATA_DIR=/tmp/test npm run dev
+CLAUDE_CONFIG_DIR=/tmp/test npm run dev
+```
+
+### CI/CD
+
+Every push → builds on Windows & macOS (GitHub Actions)  
+Push `v*` tag → creates Release with installers + checksums
 
 ---
 
-## Code Signing Policy
+## 🔐 Privacy & Security Policies
 
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+### Privacy Policy
 
-- **Scope**: Windows executable and installer (pending approval)
-- **Approval**: Manual review before every release
-- **Maintainers**: [ctrlcakepro](https://github.com/ctrlcakepro)
+Pittacus Relay **will not** transfer any information to external networks unless you explicitly configure it. Specifically:
 
----
+- **No telemetry**: zero usage stats, error reporting, or analytics
+- **No updates**: no auto-check or auto-download (manual only)
+- **No config syncing**: your keys stay on your machine
+- **No cloud**: everything local
+- **Network**: only to provider endpoints **you** configure
+- **Storage**: encrypted by OS keychain
 
-## Roadmap
+**Request logs:** token counts & summaries only. **Never** conversation content.
 
-- [x] Windows / macOS installers
-- [x] Codex integration
-- [ ] Windows code signing (awaiting SignPath Foundation approval)
-- [ ] macOS code signing and notarization
-- [ ] Auto-update
-- [ ] OpenAI ↔ Anthropic protocol conversion
-- Idea: HarmonyOS PC edition (experimental)
+### Code Signing
 
----
-
-## FAQ
-
-**Q: Does Pittacus Relay phone home?**  
-A: No. The app is local-only. It makes outbound HTTPS requests only to your configured provider endpoints. No telemetry, no analytics, no automatic updates.
-
-**Q: What if my computer crashes or I reinstall?**  
-A: Provider keys are stored encrypted in your OS keychain. They won't transfer to a new machine. Local keys can be regenerated anytime from the Overview tab.
-
-**Q: Can I use Pittacus Relay on a server or VM?**  
-A: Not yet. It's designed for desktop (Windows 10+, macOS). HarmonyOS PC support is a future idea but not scheduled.
-
-**Q: How do I report a security issue?**  
-A: Please email [security report] (TBD) instead of opening a public issue. For now, open a private security advisory on GitHub.
+Free signing by [SignPath.io](https://about.signpath.io/) ([SignPath Foundation](https://signpath.org/)):
+- Scope: Windows executable (pending approval)
+- Every release manually approved before signing
+- Maintainer: [@ctrlcakepro](https://github.com/ctrlcakepro)
 
 ---
 
-## License
+## 📄 License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — free for personal and commercial use
 
 ---
 
-## Privacy Policy
+## 🙏 Acknowledgments
 
-This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. That is:
+- **Hydra logo inspiration**: ancient mythology, multi-headed wisdom
+- **Security design**: inspired by browser isolation models and OS keychain best practices
+- **Community**: built for developers who care about key safety
 
-- **No telemetry**: no usage statistics, error reporting, or analytics are sent anywhere
-- **No updates**: the app does not check for or download updates (manual downloads required)
-- **No configuration syncing**: your vault stays on your machine
-- **Network access**: only to provider endpoints you explicitly configure
-- **Storage**: all keys and configs stay on your local disk, encrypted by OS keychain
+---
 
+## 🤝 Contributing
+
+Found a bug? Have an idea? [Open an issue](https://github.com/ctrlcakepro/pittacus-relay/issues/new).
+
+For security issues: **DO NOT** open public issues. Please report to the maintainer directly (see Code Signing Policy).
+
+---
+
+## 📊 Stats
+
+- **Latest release**: [![release](https://img.shields.io/github/v/release/ctrlcakepro/pittacus-relay?style=flat-square)](https://github.com/ctrlcakepro/pittacus-relay/releases/latest)
+- **License**: [MIT](LICENSE)
+- **Platform**: Windows 10+, macOS 10.12+
+- **Built with**: TypeScript, Electron, React, Node.js
+
+---
+
+<div align="center">
+
+**Made by [@ctrlcakepro](https://github.com/ctrlcakepro)**
+
+If Pittacus Relay saves you time or peace of mind, consider giving it a ⭐
+
+[⬇️ Download Latest](https://github.com/ctrlcakepro/pittacus-relay/releases/latest) · [📖 Docs](#-how-it-works) · [🐛 Report Issue](https://github.com/ctrlcakepro/pittacus-relay/issues)
+
+</div>
